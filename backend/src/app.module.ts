@@ -7,6 +7,8 @@ import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { AccountsModule } from './accounts/accounts.module';
+import { TransactionsModule } from './transactions/transactions.module';
+import { RedisModule } from './redis/redis.module';
 
 @Module({
   imports: [
@@ -16,9 +18,11 @@ import { AccountsModule } from './accounts/accounts.module';
     }),
     SupabaseModule,
     PrismaModule,
+    RedisModule,
     AuthModule,
     NotificationsModule,
     AccountsModule,
+    TransactionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

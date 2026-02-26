@@ -540,6 +540,7 @@ model notifications {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model transactions {
   id                                              String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  idempotency_key                                 String?            @unique @db.VarChar(100)
   from_account_id                                 String             @db.Uuid
   to_account_id                                   String             @db.Uuid
   amount                                          Decimal            @db.Decimal(18, 2)

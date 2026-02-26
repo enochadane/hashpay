@@ -69,4 +69,11 @@ export class NotificationsService {
             data: { is_read: true },
         });
     }
+
+    /**
+     * Emits a generic WebSocket event to a user.
+     */
+    emitEvent(userId: string, event: string, payload: any) {
+        this.notificationsGateway.sendToUser(userId, event, payload);
+    }
 }
