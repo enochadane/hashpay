@@ -505,19 +505,35 @@ model currencies {
 }
 
 model profiles {
-  id                                          String         @id @db.Uuid
-  first_name                                  String         @db.VarChar(120)
-  last_name                                   String         @db.VarChar(120)
-  is_active                                   Boolean        @default(true)
-  created_at                                  DateTime       @default(now()) @db.Timestamptz(6)
-  updated_at                                  DateTime       @default(now()) @db.Timestamptz(6)
+  id                                          String          @id @db.Uuid
+  first_name                                  String          @db.VarChar(120)
+  last_name                                   String          @db.VarChar(120)
+  is_active                                   Boolean         @default(true)
+  created_at                                  DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at                                  DateTime        @default(now()) @db.Timestamptz(6)
   accounts                                    accounts[]
-  contacts_contacts_contact_user_idToprofiles contacts[]     @relation("contacts_contact_user_idToprofiles")
-  contacts_contacts_user_idToprofiles         contacts[]     @relation("contacts_user_idToprofiles")
-  users                                       users          @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  contacts_contacts_contact_user_idToprofiles contacts[]      @relation("contacts_contact_user_idToprofiles")
+  contacts_contacts_user_idToprofiles         contacts[]      @relation("contacts_user_idToprofiles")
+  users                                       users           @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   transactions                                transactions[]
+  notifications                               notifications[]
 
   @@index([first_name, last_name], map: "idx_profiles_names")
+  @@schema("public")
+}
+
+model notifications {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String   @db.Uuid
+  title      String   @db.VarChar(255)
+  message    String
+  is_read    Boolean  @default(false)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @default(now()) @db.Timestamptz(6)
+  profiles   profiles @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([user_id, created_at(sort: Desc)], map: "idx_notifications_user_id_created_at")
+  @@index([user_id, is_read], map: "idx_notifications_user_id_is_read")
   @@schema("public")
 }
 
