@@ -47,7 +47,7 @@ export default function ReceiverDetailModal({
 
     return (
         <div
-            className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center p-0 sm:p-6 animate-fade-in"
+            className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center sm:items-center p-0 sm:p-6 animate-fade-in"
             onClick={handleBackdropClick}
         >
             <div className="bg-white rounded-t-[1.25rem] sm:rounded-[1.25rem] w-full sm:max-w-[min(1080px,calc(100vw-3rem))] max-h-[92vh] sm:max-h-[88vh] overflow-y-auto overflow-x-hidden px-4 py-6 sm:px-10 sm:py-9 relative animate-slide-up shadow-[0_32px_80px_rgba(0,0,0,0.20)]">

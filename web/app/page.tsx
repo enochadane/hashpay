@@ -1,63 +1,83 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/app/lib/supabase/client";
+import { User } from "@supabase/supabase-js";
 
 export default function Home() {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const supabase = createClient();
+
+  useEffect(() => {
+    async function getUser() {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+      setLoading(false);
+    }
+    getUser();
+  }, [supabase]);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    router.refresh();
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="flex min-h-screen items-center justify-center bg-[#f5f5f7] p-4 font-sans text-zinc-900">
+      {/* Glow effect background */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-gold/5 blur-[120px]" />
+        <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-gold/5 blur-[120px]" />
+      </div>
+
+      <main className="relative z-10 flex flex-col items-center text-center max-w-2xl px-6 py-20 bg-white rounded-3xl shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] w-full">
+        <div className="flex items-center gap-3 mb-8">
+          <div className="w-12 h-12 rounded-xl bg-gold flex items-center justify-center text-zinc-950 font-bold text-2xl">H</div>
+          <span className="text-3xl font-bold tracking-tight text-zinc-950">HashPay</span>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        <h1 className="text-4xl sm:text-5xl font-bold text-zinc-950 leading-tight mb-6">
+          The borderless way to <span className="text-gold italic">hash</span> your payments.
+        </h1>
+
+        <p className="text-lg text-zinc-500 mb-10 max-w-lg">
+          Join thousands of users sending money globally with lightning fast speed and bank-grade security.
+        </p>
+
+        <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto min-h-[56px] items-center justify-center">
+          {!loading && (
+            <>
+              {user ? (
+                <button
+                  onClick={handleLogout}
+                  className="flex h-14 items-center justify-center gap-2 rounded-xl bg-zinc-950 px-8 text-base font-medium text-white transition-all hover:bg-zinc-800 active:scale-95 w-full sm:w-auto"
+                >
+                  Logout
+                </button>
+              ) : (
+                <Link
+                  href="/auth"
+                  className="flex h-14 items-center justify-center gap-2 rounded-xl bg-zinc-950 px-8 text-base font-medium text-white transition-all hover:bg-zinc-800 active:scale-95 w-full sm:w-auto"
+                >
+                  Get Started
+                </Link>
+              )}
+              <Link
+                href="/receivers"
+                className="flex h-14 items-center justify-center gap-2 rounded-xl bg-gold px-8 text-base font-medium text-zinc-950 transition-all hover:bg-[#c49830] active:scale-95 w-full sm:w-auto"
+              >
+                Dashboard
+              </Link>
+            </>
+          )}
+          {loading && (
+            <div className="w-12 h-12 border-4 border-zinc-100 border-t-gold rounded-full animate-spin" />
+          )}
         </div>
       </main>
     </div>
