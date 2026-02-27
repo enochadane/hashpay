@@ -6,11 +6,13 @@ import {
     Param,
     Body,
     UseGuards,
+    Query,
 } from '@nestjs/common';
 import { AccountsService } from './accounts.service';
 import { CreateAccountDto } from './dto/create-account.dto';
 import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 
 @UseGuards(SupabaseAuthGuard)
 @Controller('accounts')
@@ -26,8 +28,11 @@ export class AccountsController {
     }
 
     @Get()
-    async getUserAccounts(@CurrentUser('id') userId: string) {
-        return this.accountsService.getUserAccounts(userId);
+    async getUserAccounts(
+        @CurrentUser('id') userId: string,
+        @Query() paginationQuery: PaginationQueryDto,
+    ) {
+        return this.accountsService.getUserAccounts(userId, paginationQuery);
     }
 
     @Get(':id')

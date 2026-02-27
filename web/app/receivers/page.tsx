@@ -56,7 +56,7 @@ export default function ReceiversPage() {
     const [search, setSearch] = useState("");
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
-    const { receivers, loading, error, fetchReceivers, setSelectedReceiver, selectedReceiver } = useReceiversStore();
+    const { receivers, receiversMeta, loading, error, fetchReceivers, setSelectedReceiver, selectedReceiver } = useReceiversStore();
     const { profile, fetchProfile, accounts, fetchAccounts } = useAuthStore();
 
     useEffect(() => {
@@ -258,10 +258,46 @@ export default function ReceiversPage() {
                                 </table>
                             </div>
 
-                            <div className="px-6 py-3.5 border-t border-gray-100">
+                            <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
                                 <p className="text-xs text-gray-400 m-0">
-                                    Showing {filtered.length} of {receivers.length} receivers
+                                    {receiversMeta ? (
+                                        <>Showing {receivers.length} of {receiversMeta.total} receivers</>
+                                    ) : (
+                                        <>Showing {receivers.length} receivers</>
+                                    )}
                                 </p>
+                                {receiversMeta && receiversMeta.totalPages > 1 && (
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => fetchReceivers(receiversMeta.page - 1)}
+                                            disabled={receiversMeta.page === 1}
+                                            className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                        >
+                                            Previous
+                                        </button>
+                                        <div className="flex items-center gap-1.5">
+                                            {[...Array(receiversMeta.totalPages)].map((_, i) => (
+                                                <button
+                                                    key={i + 1}
+                                                    onClick={() => fetchReceivers(i + 1)}
+                                                    className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold transition-all ${receiversMeta.page === i + 1
+                                                        ? "bg-[#D4A843] text-black shadow-sm"
+                                                        : "text-gray-400 hover:text-gray-600 hover:bg-gray-50"
+                                                        }`}
+                                                >
+                                                    {i + 1}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <button
+                                            onClick={() => fetchReceivers(receiversMeta.page + 1)}
+                                            disabled={receiversMeta.page === receiversMeta.totalPages}
+                                            className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                        >
+                                            Next
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </main>

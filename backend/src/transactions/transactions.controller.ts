@@ -3,6 +3,7 @@ import { TransactionsService } from './transactions.service';
 import { CreateTransferDto } from './dto/create-transfer.dto';
 import { SupabaseAuthGuard } from '../auth/supabase-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
+import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 
 @UseGuards(SupabaseAuthGuard)
 @Controller('transactions')
@@ -18,8 +19,11 @@ export class TransactionsController {
     }
 
     @Get()
-    async getUserTransactions(@CurrentUser() user: any) {
-        return this.transactionsService.getUserTransactions(user.id);
+    async getUserTransactions(
+        @CurrentUser() user: any,
+        @Query() paginationQuery: PaginationQueryDto,
+    ) {
+        return this.transactionsService.getUserTransactions(user.id, paginationQuery);
     }
 
     @Get(':id')

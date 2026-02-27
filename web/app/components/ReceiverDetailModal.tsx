@@ -20,6 +20,7 @@ export default function ReceiverDetailModal({
 }: ReceiverDetailModalProps) {
     const {
         transactions,
+        transactionsMeta,
         loading,
         fetchContactTransactions,
         selectedCurrency,
@@ -333,6 +334,48 @@ export default function ReceiverDetailModal({
                                 )}
                             </tbody>
                         </table>
+                    </div>
+
+                    <div className="mt-4 flex items-center justify-between">
+                        <p className="text-xs text-gray-400 m-0">
+                            {transactionsMeta ? (
+                                <>Showing {transactions.length} of {transactionsMeta.total} transactions</>
+                            ) : (
+                                <>Showing {transactions.length} transactions</>
+                            )}
+                        </p>
+                        {transactionsMeta && transactionsMeta.totalPages > 1 && (
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => fetchContactTransactions(receiver.id, transactionsMeta.page - 1)}
+                                    disabled={transactionsMeta.page === 1}
+                                    className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    Previous
+                                </button>
+                                <div className="flex items-center gap-1.5">
+                                    {[...Array(transactionsMeta.totalPages)].map((_, i) => (
+                                        <button
+                                            key={i + 1}
+                                            onClick={() => fetchContactTransactions(receiver.id, i + 1)}
+                                            className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold transition-all ${transactionsMeta.page === i + 1
+                                                ? "bg-[#D4A843] text-black shadow-sm"
+                                                : "text-gray-400 hover:text-gray-600 hover:bg-gray-50"
+                                                }`}
+                                        >
+                                            {i + 1}
+                                        </button>
+                                    ))}
+                                </div>
+                                <button
+                                    onClick={() => fetchContactTransactions(receiver.id, transactionsMeta.page + 1)}
+                                    disabled={transactionsMeta.page === transactionsMeta.totalPages}
+                                    className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                >
+                                    Next
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                     <p className="text-gray-400 text-xs mt-6">

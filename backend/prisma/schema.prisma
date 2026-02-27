@@ -471,6 +471,8 @@ model accounts {
   transactions_from transactions[] @relation("from_account")
   transactions_to   transactions[] @relation("to_account")
 
+  @@index([user_id])
+  @@index([user_id, currency_id])
   @@schema("public")
 }
 
@@ -483,6 +485,7 @@ model contacts {
   contact_profile profiles @relation("contacts_of_user", fields: [contact_user_id], references: [id], onDelete: Cascade)
 
   @@unique([user_id, contact_user_id])
+  @@index([contact_user_id])
   @@schema("public")
 }
 
@@ -527,6 +530,8 @@ model notifications {
   updated_at DateTime @default(now()) @db.Timestamptz(6)
   profile    profiles @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
+  @@index([user_id, created_at(sort: Desc)])
+  @@index([user_id, is_read])
   @@schema("public")
 }
 
@@ -550,6 +555,10 @@ model transactions {
   to_account                accounts           @relation("to_account", fields: [to_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   status_updater            profiles?          @relation(fields: [status_updated_by_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
+  @@index([from_account_id])
+  @@index([to_account_id])
+  @@index([currency_id])
+  @@index([created_at(sort: Desc)])
   @@schema("public")
 }
 

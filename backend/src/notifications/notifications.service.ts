@@ -2,6 +2,8 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsGateway } from './notifications.gateway';
 import { CreateNotificationDto } from './dto/create-notification.dto';
+import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
+import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 
 @Injectable()
 export class NotificationsService {
@@ -32,14 +34,33 @@ export class NotificationsService {
     }
 
     /**
-     * Get unread notifications for a user.
+     * Get notifications for a user with pagination.
      */
-    async getUserNotifications(userId: string) {
-        return this.prismaService.notifications.findMany({
-            where: { user_id: userId },
-            orderBy: { created_at: 'desc' },
-            take: 50,
-        });
+    async getUserNotifications(userId: string, paginationQuery: PaginationQueryDto): Promise<PaginatedResponseDto<any>> {
+        const { page = 1, limit = 5 } = paginationQuery;
+        const skip = (page - 1) * limit;
+
+        const [notifications, total] = await Promise.all([
+            this.prismaService.notifications.findMany({
+                where: { user_id: userId },
+                orderBy: { created_at: 'desc' },
+                skip,
+                take: limit,
+            }),
+            this.prismaService.notifications.count({
+                where: { user_id: userId },
+            }),
+        ]);
+
+        return {
+            data: notifications,
+            meta: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit),
+            },
+        };
     }
 
     /**

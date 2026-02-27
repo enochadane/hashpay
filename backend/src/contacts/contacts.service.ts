@@ -1,11 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
+import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 
 @Injectable()
 export class ContactsService {
     constructor(private readonly prisma: PrismaService) { }
 
-    async getUserContacts(userId: string) {
+    async getUserContacts(userId: string, paginationQuery: PaginationQueryDto): Promise<PaginatedResponseDto<any>> {
+        const { page = 1, limit = 5 } = paginationQuery;
+        const skip = (page - 1) * limit;
+
         const userAccounts = await this.prisma.accounts.findMany({
             where: { user_id: userId },
             select: { id: true },
@@ -37,23 +42,31 @@ export class ContactsService {
             contactCurrencyMap.get(otherUserId)!.add(t.currency.code);
         }
 
-        const contacts = await this.prisma.contacts.findMany({
-            where: { user_id: userId },
-            include: {
-                contact_profile: {
-                    include: {
-                        user: { select: { email: true } },
-                        accounts: {
-                            include: {
-                                currencies: true,
+        const [contacts, total] = await Promise.all([
+            this.prisma.contacts.findMany({
+                where: { user_id: userId },
+                include: {
+                    contact_profile: {
+                        include: {
+                            user: { select: { email: true } },
+                            accounts: {
+                                include: {
+                                    currencies: true,
+                                },
                             },
                         },
                     },
                 },
-            },
-        });
+                skip,
+                take: limit,
+                orderBy: { created_at: 'desc' },
+            }),
+            this.prisma.contacts.count({
+                where: { user_id: userId },
+            }),
+        ]);
 
-        return contacts.map(c => {
+        const data = contacts.map(c => {
             const profile = c.contact_profile;
             const validCurrencies = contactCurrencyMap.get(profile.id) || new Set();
 
@@ -71,9 +84,26 @@ export class ContactsService {
                 createdOn: profile.created_at,
             };
         });
+
+        return {
+            data,
+            meta: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit),
+            },
+        };
     }
 
-    async getContactTransactions(userId: string, contactUserId: string) {
+    async getContactTransactions(
+        userId: string,
+        contactUserId: string,
+        paginationQuery: PaginationQueryDto,
+    ): Promise<PaginatedResponseDto<any>> {
+        const { page = 1, limit = 5 } = paginationQuery;
+        const skip = (page - 1) * limit;
+
         const userAccounts = await this.prisma.accounts.findMany({
             where: { user_id: userId },
             select: { id: true },
@@ -86,38 +116,55 @@ export class ContactsService {
         });
         const contactAccountIds = contactAccounts.map(a => a.id);
 
-        return this.prisma.transactions.findMany({
-            where: {
-                OR: [
-                    {
-                        from_account_id: { in: userAccountIds },
-                        to_account_id: { in: contactAccountIds },
-                    },
-                    {
-                        from_account_id: { in: contactAccountIds },
-                        to_account_id: { in: userAccountIds },
-                    },
-                ],
-            },
-            include: {
-                currency: true,
-                from_account: {
-                    select: {
-                        provider_details: true,
-                        user_id: true,
-                        profiles: { select: { first_name: true, last_name: true } },
-                    }
+        const where = {
+            OR: [
+                {
+                    from_account_id: { in: userAccountIds },
+                    to_account_id: { in: contactAccountIds },
                 },
-                to_account: {
-                    select: {
-                        provider_details: true,
-                        user_id: true,
-                        profiles: { select: { first_name: true, last_name: true } },
-                    }
+                {
+                    from_account_id: { in: contactAccountIds },
+                    to_account_id: { in: userAccountIds },
                 },
+            ],
+        };
+
+        const [transactions, total] = await Promise.all([
+            this.prisma.transactions.findMany({
+                where,
+                include: {
+                    currency: true,
+                    from_account: {
+                        select: {
+                            provider_details: true,
+                            user_id: true,
+                            profiles: { select: { first_name: true, last_name: true } },
+                        }
+                    },
+                    to_account: {
+                        select: {
+                            provider_details: true,
+                            user_id: true,
+                            profiles: { select: { first_name: true, last_name: true } },
+                        }
+                    },
+                },
+                orderBy: { created_at: 'desc' },
+                skip,
+                take: limit,
+            }),
+            this.prisma.transactions.count({ where }),
+        ]);
+
+        return {
+            data: transactions,
+            meta: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit),
             },
-            orderBy: { created_at: 'desc' },
-        });
+        };
     }
 
     async getContactAccounts(userId: string, contactUserId: string) {

@@ -4,6 +4,8 @@ import { CreateTransferDto } from './dto/create-transfer.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { RedisService } from '../redis/redis.service';
 import { Prisma } from '@prisma/client';
+import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
+import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 
 const IDEMPOTENCY_PREFIX = 'txn:idempotency:';
 const IDEMPOTENCY_TTL_SECONDS = 24 * 60 * 60;
@@ -158,7 +160,10 @@ export class TransactionsService {
     /**
      * Get transaction history for a user.
      */
-    async getUserTransactions(userId: string) {
+    async getUserTransactions(userId: string, paginationQuery: PaginationQueryDto): Promise<PaginatedResponseDto<any>> {
+        const { page = 1, limit = 5 } = paginationQuery;
+        const skip = (page - 1) * limit;
+
         const accounts = await this.prisma.accounts.findMany({
             where: { user_id: userId },
             select: { id: true },
@@ -166,24 +171,41 @@ export class TransactionsService {
 
         const accountIds = accounts.map(a => a.id);
 
-        return this.prisma.transactions.findMany({
-            where: {
-                OR: [
-                    { from_account_id: { in: accountIds } },
-                    { to_account_id: { in: accountIds } },
-                ],
-            },
-            include: {
-                currency: true,
-                from_account: {
-                    include: { profiles: true }
+        const where = {
+            OR: [
+                { from_account_id: { in: accountIds } },
+                { to_account_id: { in: accountIds } },
+            ],
+        };
+
+        const [transactions, total] = await Promise.all([
+            this.prisma.transactions.findMany({
+                where,
+                include: {
+                    currency: true,
+                    from_account: {
+                        include: { profiles: true }
+                    },
+                    to_account: {
+                        include: { profiles: true }
+                    },
                 },
-                to_account: {
-                    include: { profiles: true }
-                },
+                orderBy: { created_at: 'desc' },
+                skip,
+                take: limit,
+            }),
+            this.prisma.transactions.count({ where }),
+        ]);
+
+        return {
+            data: transactions,
+            meta: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit),
             },
-            orderBy: { created_at: 'desc' },
-        });
+        };
     }
 
     /**
