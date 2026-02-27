@@ -196,6 +196,7 @@ async function main() {
 
         // Alice <-> Eve (USD, EUR, INR)
         { from: 'AL-USD-1', to: 'EV-USD-1', amt: 75.00, cur: 'USD', st: 'APPROVED', d: 16 },
+        { from: 'AL-USD-2', to: 'EV-USD-1', amt: 75.00, cur: 'USD', st: 'PENDING', d: 16 },
         { from: 'EV-USD-1', to: 'AL-USD-1', amt: 40.00, cur: 'USD', st: 'APPROVED', d: 8 },
         { from: 'AL-INR-1', to: 'EV-INR-1', amt: 15000, cur: 'INR', st: 'APPROVED', d: 13 },
         { from: 'EV-INR-1', to: 'AL-INR-1', amt: 5000, cur: 'INR', st: 'APPROVED', d: 7 },
@@ -301,7 +302,7 @@ async function main() {
                 create: { user_id: u1, contact_user_id: u2 },
             });
             contactCount++;
-        } catch {}
+        } catch { }
     }
     console.log(`  ✔ ${contactCount} contacts`);
 

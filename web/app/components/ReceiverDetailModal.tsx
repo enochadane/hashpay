@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import StatusBadge from "./StatusBadge";
 import CurrencyBadge from "./CurrencyBadge";
 import { useReceiversStore, type Receiver, type Transaction } from "../lib/store";
@@ -25,9 +25,23 @@ export default function ReceiverDetailModal({
         setSelectedCurrency
     } = useReceiversStore();
 
-    const filteredTransactions = selectedCurrency
-        ? transactions.filter(tx => tx.currency?.code === selectedCurrency)
-        : transactions;
+    const [searchTerm, setSearchTerm] = useState("");
+    const [statusFilter, setStatusFilter] = useState<string>("ALL");
+
+    const filteredTransactions = transactions.filter(tx => {
+        const matchesCurrency = !selectedCurrency || tx.currency?.code === selectedCurrency;
+
+        const receiverProfile = tx.to_account?.profiles;
+        const receiverName = receiverProfile ? `${receiverProfile.first_name} ${receiverProfile.last_name}` : "Unknown";
+
+        const matchesSearch = !searchTerm ||
+            receiverName.toLowerCase().includes(searchTerm.toLowerCase());
+
+        const matchesStatus = statusFilter === "ALL" ||
+            tx.status?.toUpperCase() === statusFilter.toUpperCase();
+
+        return matchesCurrency && matchesSearch && matchesStatus;
+    });
 
     useEffect(() => {
         if (receiver.id) {
@@ -131,16 +145,36 @@ export default function ReceiverDetailModal({
                         <h3 className="text-[17px] font-bold text-gray-900 m-0">
                             Transactions History With {currentUserName}
                         </h3>
-                        <div className="flex gap-2">
-                            <button
-                                className="w-[34px] h-[34px] border border-gray-200 rounded-[10px] bg-white flex items-center justify-center cursor-pointer text-gray-700 hover:border-gray-300 transition-colors"
-                                title="Search"
-                            >
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                    <circle cx="11" cy="11" r="8" />
-                                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                                </svg>
-                            </button>
+                        <div className="flex gap-3 items-center">
+                            <div className="flex items-center gap-1.5 p-1 bg-gray-50 border border-gray-100 rounded-[12px]">
+                                {(["ALL", "APPROVED", "PENDING"] as const).map((s) => (
+                                    <button
+                                        key={s}
+                                        onClick={() => setStatusFilter(s)}
+                                        className={`px-3 py-1.5 rounded-[9px] text-[11px] font-bold transition-all border-none cursor-pointer ${statusFilter === s
+                                            ? "bg-white text-gray-900 shadow-sm"
+                                            : "bg-transparent text-gray-400 hover:text-gray-600"
+                                            }`}
+                                    >
+                                        {s === "ALL" ? "All" : s.charAt(0) + s.slice(1).toLowerCase()}
+                                    </button>
+                                ))}
+                            </div>
+                            <div className="relative flex items-center">
+                                <input
+                                    type="text"
+                                    placeholder="Search by name..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="h-[34px] border border-gray-200 rounded-[10px] bg-white px-3 py-1 text-[13px] text-gray-700 focus:outline-none focus:border-[#D4A843] transition-all w-[220px] sm:w-[300px] pr-8"
+                                />
+                                <div className="absolute right-2.5 text-gray-400">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <circle cx="11" cy="11" r="8" />
+                                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                                    </svg>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -173,7 +207,11 @@ export default function ReceiverDetailModal({
                                         <td colSpan={8} className="py-12 text-center text-gray-400">
                                             {transactions.length === 0
                                                 ? `No transactions found between you and ${receiver.name}.`
-                                                : `No transactions found for ${selectedCurrency}.`}
+                                                : searchTerm
+                                                    ? `No transactions matching "${searchTerm}" found.`
+                                                    : statusFilter !== "ALL"
+                                                        ? `No ${statusFilter.toLowerCase()} transactions found.`
+                                                        : `No transactions found for ${selectedCurrency}.`}
                                         </td>
                                     </tr>
                                 ) : (
