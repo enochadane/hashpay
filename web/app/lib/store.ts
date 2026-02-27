@@ -51,12 +51,14 @@ interface AuthState {
 interface ReceiversState {
     receivers: Receiver[];
     selectedReceiver: Receiver | null;
+    selectedCurrency: string | null;
     transactions: Transaction[];
     loading: boolean;
     error: string | null;
     fetchReceivers: () => Promise<void>;
     fetchContactTransactions: (contactId: string) => Promise<void>;
     setSelectedReceiver: (receiver: Receiver | null) => void;
+    setSelectedCurrency: (currency: string | null) => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -77,6 +79,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 export const useReceiversStore = create<ReceiversState>((set) => ({
     receivers: [],
     selectedReceiver: null,
+    selectedCurrency: "USD",
     transactions: [],
     loading: false,
     error: null,
@@ -99,4 +102,5 @@ export const useReceiversStore = create<ReceiversState>((set) => ({
         }
     },
     setSelectedReceiver: (receiver) => set({ selectedReceiver: receiver }),
+    setSelectedCurrency: (currency) => set({ selectedCurrency: currency }),
 }));

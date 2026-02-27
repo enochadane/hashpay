@@ -22,12 +22,10 @@ export class AccountsService {
         }
 
         // 2. Check if user already has an account in this currency
-        const existingAccount = await this.prisma.accounts.findUnique({
+        const existingAccount = await this.prisma.accounts.findFirst({
             where: {
-                user_id_currency_id: {
-                    user_id: userId,
-                    currency_id: dto.currencyId,
-                },
+                user_id: userId,
+                currency_id: dto.currencyId,
             },
         });
 
@@ -104,7 +102,7 @@ export class AccountsService {
      * In a real banking system this would follow specific modulo/checksum rules (e.g. Luhn algorithm).
      */
     private generateAccountNumber(): string {
-        const prefix = '10'; // Arbitrary prefix
+        const prefix = '10';
         const randomPart = Math.floor(Math.random() * 100000000).toString().padStart(8, '0');
         return `${prefix}${randomPart}`;
     }

@@ -17,7 +17,17 @@ export default function ReceiverDetailModal({
     currentUserName,
     onClose,
 }: ReceiverDetailModalProps) {
-    const { transactions, loading, fetchContactTransactions } = useReceiversStore();
+    const {
+        transactions,
+        loading,
+        fetchContactTransactions,
+        selectedCurrency,
+        setSelectedCurrency
+    } = useReceiversStore();
+
+    const filteredTransactions = selectedCurrency
+        ? transactions.filter(tx => tx.currency?.code === selectedCurrency)
+        : transactions;
 
     useEffect(() => {
         if (receiver.id) {
@@ -103,7 +113,14 @@ export default function ReceiverDetailModal({
                                 return map;
                             }, {} as Record<string, { code: string; countryCode: string; accountCount: number }>);
                             return Object.values(grouped).map((c) => (
-                                <CurrencyBadge key={c.code} countryCode={c.countryCode} code={c.code} accountCount={c.accountCount} />
+                                <CurrencyBadge
+                                    key={c.code}
+                                    countryCode={c.countryCode}
+                                    code={c.code}
+                                    accountCount={c.accountCount}
+                                    isSelected={selectedCurrency === c.code}
+                                    onClick={() => setSelectedCurrency(selectedCurrency === c.code ? null : c.code)}
+                                />
                             ));
                         })()}
                     </div>
@@ -151,14 +168,16 @@ export default function ReceiverDetailModal({
                                             </div>
                                         </td>
                                     </tr>
-                                ) : transactions.length === 0 ? (
+                                ) : filteredTransactions.length === 0 ? (
                                     <tr>
                                         <td colSpan={8} className="py-12 text-center text-gray-400">
-                                            No transactions found between you and {receiver.name}.
+                                            {transactions.length === 0
+                                                ? `No transactions found between you and ${receiver.name}.`
+                                                : `No transactions found for ${selectedCurrency}.`}
                                         </td>
                                     </tr>
                                 ) : (
-                                    transactions.map((tx: Transaction, idx: number) => {
+                                    filteredTransactions.map((tx: Transaction, idx: number) => {
                                         const receiverProfile = tx.to_account?.profiles;
                                         const receiverName = receiverProfile ? `${receiverProfile.first_name} ${receiverProfile.last_name}` : "Unknown";
                                         const paidWith = tx.from_account?.provider_details || "—";
