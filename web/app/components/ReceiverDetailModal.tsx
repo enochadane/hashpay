@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import StatusBadge from "./StatusBadge";
 import CurrencyBadge from "./CurrencyBadge";
 import { useReceiversStore, type Receiver, type Transaction } from "../lib/store";
+import { apiFetchBlob } from "../lib/api";
 
 interface ReceiverDetailModalProps {
     receiver: Receiver;
@@ -27,6 +28,8 @@ export default function ReceiverDetailModal({
 
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState<string>("ALL");
+    const [downloadingId, setDownloadingId] = useState<string | null>(null);
+    const [viewingId, setViewingId] = useState<string | null>(null);
 
     const filteredTransactions = transactions.filter(tx => {
         const matchesCurrency = !selectedCurrency || tx.currency?.code === selectedCurrency;
@@ -64,6 +67,40 @@ export default function ReceiverDetailModal({
             hour: '2-digit',
             minute: '2-digit',
         });
+    };
+
+    const handleDownload = async (txnId: string, referenceNumber: string) => {
+        setDownloadingId(txnId);
+        try {
+            const blob = await apiFetchBlob(`/reports/transactions/${txnId}/pdf`);
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `receipt-${referenceNumber || txnId.slice(0, 8)}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        } catch (error) {
+            console.error("Failed to download PDF:", error);
+            alert("Failed to download the report. Please try again.");
+        } finally {
+            setDownloadingId(null);
+        }
+    };
+
+    const handleView = async (txnId: string) => {
+        setViewingId(txnId);
+        try {
+            const blob = await apiFetchBlob(`/reports/transactions/${txnId}/pdf`);
+            const url = window.URL.createObjectURL(blob);
+            window.open(url, "_blank");
+        } catch (error) {
+            console.error("Failed to view PDF:", error);
+            alert("Failed to open the report. Please try again.");
+        } finally {
+            setViewingId(null);
+        }
     };
 
     return (
@@ -247,11 +284,33 @@ export default function ReceiverDetailModal({
                                                 </td>
                                                 <td className="py-3.5 whitespace-nowrap">
                                                     <div className="flex items-center gap-1.5">
-                                                        <button className="text-blue-600 text-xs font-semibold bg-transparent border border-blue-200 cursor-pointer px-2.5 py-1 rounded-md hover:bg-blue-50 transition-colors">
-                                                            View
+                                                        <button
+                                                            onClick={() => handleView(tx.id)}
+                                                            disabled={viewingId === tx.id || downloadingId === tx.id}
+                                                            className="text-blue-600 text-xs font-semibold bg-transparent border border-blue-200 cursor-pointer px-2.5 py-1 rounded-md hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                                                        >
+                                                            {viewingId === tx.id ? (
+                                                                <>
+                                                                    <div className="w-3 h-3 border border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+                                                                    ...
+                                                                </>
+                                                            ) : (
+                                                                "View"
+                                                            )}
                                                         </button>
-                                                        <button className="text-amber-600 text-xs font-semibold bg-transparent border border-amber-200 cursor-pointer px-2.5 py-1 rounded-md hover:bg-amber-50 transition-colors">
-                                                            Download
+                                                        <button
+                                                            onClick={() => handleDownload(tx.id, tx.reference_number)}
+                                                            disabled={downloadingId === tx.id || viewingId === tx.id}
+                                                            className="text-amber-600 text-xs font-semibold bg-transparent border border-amber-200 cursor-pointer px-2.5 py-1 rounded-md hover:bg-amber-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                                                        >
+                                                            {downloadingId === tx.id ? (
+                                                                <>
+                                                                    <div className="w-3 h-3 border border-amber-200 border-t-amber-600 rounded-full animate-spin" />
+                                                                    ...
+                                                                </>
+                                                            ) : (
+                                                                "Download"
+                                                            )}
                                                         </button>
                                                     </div>
                                                 </td>

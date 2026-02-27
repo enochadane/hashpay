@@ -46,3 +46,24 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}) {
 
     return response.json();
 }
+
+export async function apiFetchBlob(endpoint: string, options: RequestInit = {}) {
+    const token = await getAccessToken();
+
+    const headers: Record<string, string> = {
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        ...(options.headers as Record<string, string> || {}),
+    };
+
+    const response = await fetch(`${API_URL}${endpoint}`, {
+        ...options,
+        headers,
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `API request failed (${response.status})`);
+    }
+
+    return response.blob();
+}

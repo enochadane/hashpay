@@ -10,6 +10,7 @@ import { AccountsModule } from './accounts/accounts.module';
 import { TransactionsModule } from './transactions/transactions.module';
 import { RedisModule } from './redis/redis.module';
 import { ContactsModule } from './contacts/contacts.module';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { ContactsModule } from './contacts/contacts.module';
     AccountsModule,
     TransactionsModule,
     ContactsModule,
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
