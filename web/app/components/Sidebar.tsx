@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAuthStore } from "../lib/store";
+import SendMoneyModal from "./SendMoneyModal";
+import { useSocket } from "../lib/useSocket";
 
 const navItems = [
     {
@@ -95,14 +97,17 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
     const pathname = usePathname();
-    const { profile, fetchProfile } = useAuthStore();
-    console.log(profile, 'profile');
+    const { profile, fetchProfile, fetchAccounts } = useAuthStore();
+    const [showSendModal, setShowSendModal] = useState(false);
+
+    useSocket();
 
     useEffect(() => {
         if (!profile) {
             fetchProfile();
         }
-    }, [profile, fetchProfile]);
+        fetchAccounts();
+    }, [profile, fetchProfile, fetchAccounts]);
 
     const userInitials = profile ? (profile.first_name?.[0] || "") : "U";
     const userName = profile ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() : "User";
@@ -169,11 +174,21 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
                     </ul>
 
                     <div className="mt-6 px-0.5">
-                        <button className="w-full bg-[#D4A843] hover:bg-[#c49830] text-black font-bold text-[14.5px] rounded-2xl py-3.5 cursor-pointer border-none transition-colors duration-150">
+                        <button
+                            onClick={() => {
+                                setShowSendModal(true);
+                                onClose?.();
+                            }}
+                            className="w-full bg-[#D4A843] hover:bg-[#c49830] text-black font-bold text-[14.5px] rounded-2xl py-3.5 cursor-pointer border-none transition-colors duration-150"
+                        >
                             Send
                         </button>
                     </div>
                 </nav>
+
+                {showSendModal && (
+                    <SendMoneyModal onClose={() => setShowSendModal(false)} />
+                )}
 
                 <div className="px-3.5 pb-5 pt-3">
                     <div className="flex items-center gap-3 bg-black/5 rounded-2xl px-3.5 py-3 mb-1.5 min-w-0">

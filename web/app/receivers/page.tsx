@@ -18,22 +18,36 @@ function avatarColor(id: string) {
     return AVATAR_COLORS[numId % AVATAR_COLORS.length];
 }
 
-function StatCard({ label, value, sub, icon, accentColor }: {
-    label: string; value: string; sub: string; icon: React.ReactNode; accentColor: string;
+function BalanceCard({ balance, code, countryCode }: {
+    balance: string; code: string; countryCode: string;
 }) {
     return (
-        <div className="flex items-start gap-4 flex-1 bg-white border border-gray-200 rounded-2xl px-6 py-5 shadow-sm min-w-0">
-            <div
-                className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
-                style={{ backgroundColor: accentColor + "18", color: accentColor }}
-            >
-                {icon}
+        <div className="flex flex-col gap-3 min-w-[200px] bg-white border border-gray-100 rounded-[24px] p-5 shadow-sm hover:shadow-md transition-all duration-300 group">
+            <div className="flex items-center justify-between">
+                <div className="w-10 h-10 rounded-full overflow-hidden border border-gray-100 shadow-sm shrink-0">
+                    <Image
+                        src={`https://flagcdn.com/w80/${countryCode.toLowerCase()}.png`}
+                        alt={code}
+                        width={40}
+                        height={30}
+                        className="w-full h-full object-cover scale-125"
+                        unoptimized
+                    />
+                </div>
+                <span className="text-[11px] font-bold text-gray-400 tracking-wider uppercase bg-gray-50 px-2 py-1 rounded-lg">
+                    {code}
+                </span>
             </div>
-            <div className="min-w-0">
-                <p className="text-[12px] text-gray-400 m-0 mb-1 font-medium">{label}</p>
-                <p className="text-2xl font-extrabold text-gray-900 m-0 mb-0.5 tracking-tight">{value}</p>
-                <p className="text-[12px] text-gray-400 m-0">{sub}</p>
+            <div className="mt-1">
+                <p className="text-[11px] text-gray-400 font-medium mb-0.5">Available Balance</p>
+                <div className="flex items-baseline gap-1.5">
+                    <span className="text-2xl font-black text-gray-900 tracking-tight">
+                        {parseFloat(balance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                    <span className="text-sm font-bold text-[#D4A843]">{code}</span>
+                </div>
             </div>
+            <div className="h-1 w-0 group-hover:w-full bg-[#D4A843] transition-all duration-300 rounded-full opacity-20" />
         </div>
     );
 }
@@ -43,23 +57,19 @@ export default function ReceiversPage() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
     const { receivers, loading, error, fetchReceivers, setSelectedReceiver, selectedReceiver } = useReceiversStore();
-    const { profile, fetchProfile } = useAuthStore();
+    const { profile, fetchProfile, accounts, fetchAccounts } = useAuthStore();
 
     useEffect(() => {
         fetchReceivers();
         fetchProfile();
-    }, [fetchReceivers, fetchProfile]);
+        fetchAccounts();
+    }, [fetchReceivers, fetchProfile, fetchAccounts]);
 
     const filtered = receivers.filter(
         (r: Receiver) =>
             r.name.toLowerCase().includes(search.toLowerCase()) ||
             r.email.toLowerCase().includes(search.toLowerCase())
     );
-
-    const totalAccounts = receivers.flatMap((r: Receiver) => r.currencies).reduce((s: number, c: any) => s + c.accountCount, 0);
-    const totalCurrencies = new Set(receivers.flatMap((r: Receiver) => r.currencies.map((c: any) => c.code))).size;
-
-    const currentUserName = profile ? `${profile.first_name}` : "User";
 
     return (
         <>
@@ -105,17 +115,22 @@ export default function ReceiversPage() {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-7">
-                            <StatCard label="Total Receivers" value={String(receivers.length)} sub="All time" accentColor="#D4A843"
-                                icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>}
-                            />
-                            <StatCard label="Linked Accounts" value={String(totalAccounts)} sub="Across all receivers" accentColor="#4f46e5"
-                                icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 3H8L2 7h20l-6-4z" /><circle cx="16" cy="14" r="2" /></svg>}
-                            />
-
-                            <StatCard label="Currencies Used" value={String(totalCurrencies)} sub="Unique currencies" accentColor="#0891b2"
-                                icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></svg>}
-                            />
+                        {/* Balance Cards Grid */}
+                        <div className="flex flex-nowrap sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-10 overflow-x-auto pb-4 sm:pb-0 scrollbar-hide">
+                            {accounts.length > 0 ? (
+                                accounts.map((acc) => (
+                                    <BalanceCard
+                                        key={acc.id}
+                                        balance={acc.balance}
+                                        code={acc.currencies.code}
+                                        countryCode={acc.currencies.country_code}
+                                    />
+                                ))
+                            ) : (
+                                <div className="col-span-full py-8 text-center bg-white rounded-3xl border border-dashed border-gray-200">
+                                    <p className="text-gray-400 text-sm">No accounts found</p>
+                                </div>
+                            )}
                         </div>
 
                         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm min-h-[400px]">

@@ -20,4 +20,12 @@ export class ContactsController {
     ) {
         return this.contactsService.getContactTransactions(userId, contactId);
     }
+
+    @Get(':contactId/accounts')
+    async getContactAccounts(
+        @CurrentUser('id') userId: string,
+        @Param('contactId') contactId: string,
+    ) {
+        return this.contactsService.getContactAccounts(userId, contactId);
+    }
 }

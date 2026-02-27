@@ -2,7 +2,7 @@ import { createClient } from './supabase/client';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
-async function getAccessToken(): Promise<string | null> {
+export async function getAccessToken(): Promise<string | null> {
     const supabase = createClient();
 
     const { data: { session } } = await supabase.auth.getSession();

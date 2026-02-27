@@ -119,4 +119,16 @@ export class ContactsService {
             orderBy: { created_at: 'desc' },
         });
     }
+
+    async getContactAccounts(userId: string, contactUserId: string) {
+        return this.prisma.accounts.findMany({
+            where: {
+                user_id: contactUserId,
+                is_active: true,
+            },
+            include: {
+                currencies: true,
+            },
+        });
+    }
 }

@@ -44,7 +44,9 @@ export interface Transaction {
 
 interface AuthState {
     profile: any | null;
+    accounts: any[];
     fetchProfile: () => Promise<void>;
+    fetchAccounts: () => Promise<void>;
     loading: boolean;
 }
 
@@ -63,6 +65,7 @@ interface ReceiversState {
 
 export const useAuthStore = create<AuthState>((set) => ({
     profile: null,
+    accounts: [],
     loading: false,
     fetchProfile: async () => {
         set({ loading: true });
@@ -72,6 +75,18 @@ export const useAuthStore = create<AuthState>((set) => ({
         } catch (err) {
             console.error('[AuthStore] fetchProfile failed:', err);
             set({ profile: null, loading: false });
+        }
+    },
+    fetchAccounts: async () => {
+        console.log('[AuthStore] fetchAccounts() called');
+        set({ loading: true });
+        try {
+            const accounts = await apiFetch('/accounts');
+            console.log('[AuthStore] fetchAccounts() success — got', accounts.length, 'accounts');
+            set({ accounts, loading: false });
+        } catch (err) {
+            console.error('[AuthStore] fetchAccounts failed:', err);
+            set({ accounts: [], loading: false });
         }
     },
 }));
@@ -93,11 +108,14 @@ export const useReceiversStore = create<ReceiversState>((set) => ({
         }
     },
     fetchContactTransactions: async (contactId: string) => {
+        console.log('[ReceiversStore] fetchContactTransactions() called for', contactId);
         set({ loading: true });
         try {
             const data = await apiFetch(`/contacts/${contactId}/transactions`);
+            console.log('[ReceiversStore] fetchContactTransactions() success — got', data.length, 'transactions');
             set({ transactions: data, loading: false });
         } catch (err: any) {
+            console.error('[ReceiversStore] fetchContactTransactions failed:', err);
             set({ transactions: [], loading: false });
         }
     },

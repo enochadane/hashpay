@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import StatusBadge from "./StatusBadge";
 import CurrencyBadge from "./CurrencyBadge";
-import { useReceiversStore, type Receiver, type Transaction } from "../lib/store";
+import { useReceiversStore, useAuthStore, type Receiver, type Transaction } from "../lib/store";
 import { apiFetchBlob } from "../lib/api";
 
 interface ReceiverDetailModalProps {
@@ -26,10 +26,13 @@ export default function ReceiverDetailModal({
         setSelectedCurrency
     } = useReceiversStore();
 
+    const { accounts, fetchAccounts } = useAuthStore();
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState<string>("ALL");
     const [downloadingId, setDownloadingId] = useState<string | null>(null);
     const [viewingId, setViewingId] = useState<string | null>(null);
+
+    const senderBalance = accounts.find(a => a.currencies.code === (selectedCurrency || "USD"))?.balance;
 
     const filteredTransactions = transactions.filter(tx => {
         const matchesCurrency = !selectedCurrency || tx.currency?.code === selectedCurrency;
@@ -50,7 +53,8 @@ export default function ReceiverDetailModal({
         if (receiver.id) {
             fetchContactTransactions(receiver.id);
         }
-    }, [receiver.id, fetchContactTransactions]);
+        fetchAccounts();
+    }, [receiver.id, fetchContactTransactions, fetchAccounts]);
 
     const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
         if (e.target === e.currentTarget) onClose();
@@ -128,7 +132,16 @@ export default function ReceiverDetailModal({
                                 </svg>
                             </a>
                         </div>
-                        <p className="text-gray-400 text-[13px] mt-1 mb-0">{receiver.email}</p>
+                        <div className="flex items-center gap-2.5 mt-1.5 flex-wrap">
+                            <p className="text-gray-400 text-[13px] m-0">{receiver.email}</p>
+                            <span className="w-1 h-1 rounded-full bg-gray-300 hidden sm:block"></span>
+                            <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-100 rounded-full px-2.5 py-0.5">
+                                <span className="text-gray-400 text-[12px]">Your Balance:</span>
+                                <span className="text-gray-900 font-bold text-[12px]">
+                                    {senderBalance ? parseFloat(senderBalance).toLocaleString() : "0.00"} {selectedCurrency || "USD"}
+                                </span>
+                            </div>
+                        </div>
                     </div>
 
                     <div className="flex gap-2 ml-4 shrink-0">

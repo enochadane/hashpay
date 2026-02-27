@@ -118,8 +118,9 @@ export class TransactionsService {
         });
 
         try {
+            this.logger.log(`[Post-commit] Step 1: Caching to Redis...`);
             await this.redisService.set(redisKey, JSON.stringify(transaction), IDEMPOTENCY_TTL_SECONDS);
-            this.logger.log(`Cached transaction ${transaction.id} in Redis (TTL: ${IDEMPOTENCY_TTL_SECONDS}s)`);
+            this.logger.log(`[Post-commit] Step 1 DONE: Cached transaction ${transaction.id} in Redis with key: ${redisKey}`);
 
             const senderAccount = (transaction as any).from_account;
             const receiverAccount = (transaction as any).to_account;
@@ -128,9 +129,12 @@ export class TransactionsService {
             const toUserId = receiverAccount.user_id;
             const receiverAccNum = receiverAccount.account_number;
 
+            this.logger.log(`[Post-commit] Step 2: Emitting TRANSACTION_SUCCESS to sender (${fromUserId}) and receiver (${toUserId})...`);
             this.notificationsService.emitEvent(fromUserId, 'TRANSACTION_SUCCESS', transaction);
             this.notificationsService.emitEvent(toUserId, 'TRANSACTION_SUCCESS', transaction);
+            this.logger.log(`[Post-commit] Step 2 DONE: Socket events emitted`);
 
+            this.logger.log(`[Post-commit] Step 3: Saving notifications to DB...`);
             await Promise.all([
                 this.notificationsService.sendNotification({
                     userId: fromUserId,
@@ -143,8 +147,9 @@ export class TransactionsService {
                     message: `You received ${dto.amount} ${(transaction as any).currency.code} from a user.`,
                 }),
             ]);
+            this.logger.log(`[Post-commit] Step 3 DONE: Notifications saved`);
         } catch (err) {
-            this.logger.error(`Post-commit actions failed for transaction ${transaction.id}: ${err.message}`);
+            this.logger.error(`[Post-commit] FAILED for transaction ${transaction.id}: ${err.message}`, err.stack);
         }
 
         return transaction;
