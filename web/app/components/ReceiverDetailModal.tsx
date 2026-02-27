@@ -1,34 +1,10 @@
 "use client";
 
 import Image from "next/image";
-import StatusBadge, { type Status } from "./StatusBadge";
+import { useEffect } from "react";
+import StatusBadge from "./StatusBadge";
 import CurrencyBadge from "./CurrencyBadge";
-
-export interface Transaction {
-    id: number;
-    referenceNumber: string;
-    to: string;
-    dateTime: string;
-    paidWith: string;
-    amount: string;
-    amountCountryCode: string;
-    status: Status;
-}
-
-export interface ReceiverCurrency {
-    countryCode: string;
-    code: string;
-    accountCount: number;
-}
-
-export interface Receiver {
-    id: number;
-    name: string;
-    email: string;
-    currencies: ReceiverCurrency[];
-    transactions: Transaction[];
-    createdOn: string;
-}
+import { useReceiversStore, type Receiver, type Transaction } from "../lib/store";
 
 interface ReceiverDetailModalProps {
     receiver: Receiver;
@@ -41,8 +17,29 @@ export default function ReceiverDetailModal({
     currentUserName,
     onClose,
 }: ReceiverDetailModalProps) {
+    const { transactions, loading, fetchContactTransactions } = useReceiversStore();
+
+    useEffect(() => {
+        if (receiver.id) {
+            fetchContactTransactions(receiver.id);
+        }
+    }, [receiver.id, fetchContactTransactions]);
+
     const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
         if (e.target === e.currentTarget) onClose();
+    };
+
+    const formatDate = (dateStr: string) => {
+        if (!dateStr) return "N/A";
+        const d = new Date(dateStr);
+        return d.toLocaleDateString('en-GB', {
+            weekday: 'short',
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        });
     };
 
     return (
@@ -96,8 +93,8 @@ export default function ReceiverDetailModal({
                 <div className="mb-7">
                     <p className="text-[13px] text-gray-500 mb-3">Currencies they use:</p>
                     <div className="flex gap-3 flex-wrap">
-                        {receiver.currencies.map((c) => (
-                            <CurrencyBadge key={c.code} countryCode={c.countryCode} code={c.code} accountCount={c.accountCount} />
+                        {receiver.currencies.map((c: any, i: number) => (
+                            <CurrencyBadge key={`${c.code}-${i}`} countryCode={c.countryCode} code={c.code} accountCount={c.accountCount} />
                         ))}
                     </div>
                 </div>
@@ -117,15 +114,6 @@ export default function ReceiverDetailModal({
                                     <line x1="21" y1="21" x2="16.65" y2="16.65" />
                                 </svg>
                             </button>
-                            <button
-                                className="w-[34px] h-[34px] border border-gray-200 rounded-[10px] bg-white flex items-center justify-center cursor-pointer text-gray-700 hover:border-gray-300 transition-colors"
-                                title="Expand"
-                            >
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <polyline points="7 17 17 7" />
-                                    <polyline points="7 7 17 7 17 17" />
-                                </svg>
-                            </button>
                         </div>
                     </div>
 
@@ -133,7 +121,7 @@ export default function ReceiverDetailModal({
                         <table className="w-full border-collapse text-[13px]">
                             <thead>
                                 <tr>
-                                    {["#", "Reference number", "To", "Date & Time", "Paid with", "Amount", "Status", "Actions"].map((h) => (
+                                    {["#", "Reference number", "To", "Date & Time", "Amount", "Status", "Actions"].map((h) => (
                                         <th
                                             key={h}
                                             className="text-left text-gray-400 font-medium text-xs pb-2.5 pr-4 whitespace-nowrap border-b border-gray-100"
@@ -144,48 +132,65 @@ export default function ReceiverDetailModal({
                                 </tr>
                             </thead>
                             <tbody>
-                                {receiver.transactions.map((tx) => (
-                                    <tr key={tx.id} className="border-b border-gray-50">
-                                        <td className="py-3.5 pr-4 text-gray-400">{tx.id}</td>
-                                        <td className="py-3.5 pr-4 text-gray-700 font-medium font-mono text-xs">{tx.referenceNumber}</td>
-                                        <td className="py-3.5 pr-4 text-gray-900">{tx.to}</td>
-                                        <td className="py-3.5 pr-4 text-gray-500 whitespace-nowrap">{tx.dateTime}</td>
-                                        <td className="py-3.5 pr-4 text-gray-700">{tx.paidWith}</td>
-                                        <td className="py-3.5 pr-4 text-gray-900 whitespace-nowrap">
-                                            <span className="flex items-center gap-2">
-                                                <span className="w-5 h-5 rounded-full overflow-hidden shrink-0 inline-flex relative">
-                                                    <Image
-                                                        src={`https://flagcdn.com/w40/${tx.amountCountryCode.toLowerCase()}.png`}
-                                                        alt={tx.amountCountryCode}
-                                                        width={40}
-                                                        height={30}
-                                                        className="w-full h-full object-cover"
-                                                        unoptimized
-                                                    />
-                                                </span>
-                                                {tx.amount}
-                                            </span>
-                                        </td>
-                                        <td className="py-3.5 pr-4">
-                                            <StatusBadge status={tx.status} />
-                                        </td>
-                                        <td className="py-3.5 whitespace-nowrap">
-                                            <button className="text-gray-700 text-xs font-medium bg-transparent border-none cursor-pointer px-1 py-0.5 hover:text-gray-900">
-                                                View
-                                            </button>
-                                            <span className="text-gray-200 mx-1">|</span>
-                                            <button className="text-[#D4A843] text-xs font-medium bg-transparent border-none cursor-pointer px-1 py-0.5 hover:text-[#c49830]">
-                                                Download
-                                            </button>
+                                {loading && transactions.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={7} className="py-20 text-center">
+                                            <div className="flex flex-col items-center gap-3">
+                                                <div className="w-6 h-6 border-2 border-gray-100 border-t-[#D4A843] rounded-full animate-spin" />
+                                                <span className="text-gray-400">Loading history...</span>
+                                            </div>
                                         </td>
                                     </tr>
-                                ))}
+                                ) : transactions.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={7} className="py-12 text-center text-gray-400">
+                                            No transactions found between you and {receiver.name}.
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    transactions.map((tx: Transaction, idx: number) => {
+                                        const toProfile = tx.accounts_transactions_to_account_idToaccounts?.profiles;
+                                        const toName = toProfile ? `${toProfile.first_name} ${toProfile.last_name}` : "Unknown";
+
+                                        return (
+                                            <tr key={tx.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                                                <td className="py-3.5 pr-4 text-gray-400">{idx + 1}</td>
+                                                <td className="py-3.5 pr-4 text-gray-700 font-medium font-mono text-xs uppercase">{tx.reference_number?.slice(-12) || "TXN-" + tx.id.slice(0, 8)}</td>
+                                                <td className="py-3.5 pr-4 text-gray-900 font-medium">{toName}</td>
+                                                <td className="py-3.5 pr-4 text-gray-500 whitespace-nowrap">{formatDate(tx.created_at)}</td>
+                                                <td className="py-3.5 pr-4 text-gray-900 whitespace-nowrap">
+                                                    <span className="flex items-center gap-2">
+                                                        <span className="w-5 h-5 rounded-full overflow-hidden shrink-0 inline-flex relative border border-gray-100">
+                                                            <Image
+                                                                src={`https://flagcdn.com/w40/${tx.currencies.country_code.toLowerCase()}.png`}
+                                                                alt={tx.currencies.code}
+                                                                width={40}
+                                                                height={30}
+                                                                className="w-full h-full object-cover"
+                                                                unoptimized
+                                                            />
+                                                        </span>
+                                                        <span className="font-bold">{parseFloat(tx.amount).toLocaleString()} {tx.currencies.code}</span>
+                                                    </span>
+                                                </td>
+                                                <td className="py-3.5 pr-4">
+                                                    <StatusBadge status={tx.status as any} />
+                                                </td>
+                                                <td className="py-3.5 whitespace-nowrap">
+                                                    <button className="text-[#D4A843] text-xs font-bold bg-transparent border-none cursor-pointer px-2 py-1 hover:bg-[#D4A843]/10 rounded-lg transition-colors">
+                                                        View Receipt
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
+                                )}
                             </tbody>
                         </table>
                     </div>
 
                     <p className="text-gray-400 text-xs mt-6">
-                        You&apos;ve created this customer on {receiver.createdOn}
+                        Added {receiver.name} on {new Date(receiver.createdOn).toLocaleDateString()}
                     </p>
                 </div>
             </div>

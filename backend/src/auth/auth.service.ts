@@ -129,6 +129,15 @@ export class AuthService {
      * Get the user's profile from the database.
      */
     async getProfile(userId: string) {
+        const supabase = this.supabaseService.getClient();
+
+        // Fetch user from Supabase Auth to get the email
+        const { data: { user }, error: authError } = await supabase.auth.admin.getUserById(userId);
+
+        if (authError || !user) {
+            this.logger.warn(`Could not fetch auth user ${userId}: ${authError?.message}`);
+        }
+
         const profile = await this.prismaService.profiles.findUnique({
             where: { id: userId },
             include: {
@@ -144,6 +153,9 @@ export class AuthService {
             throw new BadRequestException('Profile not found');
         }
 
-        return profile;
+        return {
+            ...profile,
+            email: user?.email,
+        };
     }
 }

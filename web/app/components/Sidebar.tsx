@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect } from "react";
+import { useAuthStore } from "../lib/store";
 
 const navItems = [
     {
@@ -93,6 +95,18 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
     const pathname = usePathname();
+    const { profile, fetchProfile } = useAuthStore();
+    console.log(profile, 'profile');
+
+    useEffect(() => {
+        if (!profile) {
+            fetchProfile();
+        }
+    }, [profile, fetchProfile]);
+
+    const userInitials = profile ? (profile.first_name?.[0] || "") : "U";
+    const userName = profile ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim() : "User";
+    const userEmail = profile?.email || "user@email.com";
 
     return (
         <>
@@ -162,13 +176,13 @@ export default function Sidebar({ isOpen = true, onClose }: SidebarProps) {
                 </nav>
 
                 <div className="px-3.5 pb-5 pt-3">
-                    <div className="flex items-center gap-3 bg-black/5 rounded-2xl px-3.5 py-3 mb-1.5">
+                    <div className="flex items-center gap-3 bg-black/5 rounded-2xl px-3.5 py-3 mb-1.5 min-w-0">
                         <div className="w-[34px] h-[34px] rounded-full bg-[#D4A843] flex items-center justify-center shrink-0">
-                            <span className="text-black font-bold text-[13px]">K</span>
+                            <span className="text-black font-bold text-[13px]">{userInitials}</span>
                         </div>
-                        <div>
-                            <p className="text-gray-900 text-[13.5px] font-semibold m-0">Kasra</p>
-                            <p className="text-gray-400 text-[11px] m-0">kasra@email.com</p>
+                        <div className="min-w-0">
+                            <p className="text-gray-900 text-[13.5px] font-semibold m-0 truncate">{userName}</p>
+                            <p className="text-gray-400 text-[11px] m-0 truncate">{userEmail}</p>
                         </div>
                     </div>
 

@@ -9,6 +9,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { AccountsModule } from './accounts/accounts.module';
 import { TransactionsModule } from './transactions/transactions.module';
 import { RedisModule } from './redis/redis.module';
+import { ContactsModule } from './contacts/contacts.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { RedisModule } from './redis/redis.module';
     NotificationsModule,
     AccountsModule,
     TransactionsModule,
+    ContactsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -6,7 +6,7 @@ import { RedisService } from '../redis/redis.service';
 import { Prisma } from '@prisma/client';
 
 const IDEMPOTENCY_PREFIX = 'txn:idempotency:';
-const IDEMPOTENCY_TTL_SECONDS = 24 * 60 * 60; // 24 hours
+const IDEMPOTENCY_TTL_SECONDS = 24 * 60 * 60;
 
 @Injectable()
 export class TransactionsService {
@@ -18,26 +18,15 @@ export class TransactionsService {
         private readonly redisService: RedisService,
     ) { }
 
-    /**
-     * Executes a P2P transfer between two accounts atomically and idempotently.
-     *
-     * Idempotency flow:
-     * 1. Check Redis cache (fast path) → return cached transaction if found
-     * 2. Check Postgres unique constraint (safety net) → return existing transaction if found
-     * 3. Execute transfer in a DB transaction
-     * 4. Cache the result in Redis with a 24h TTL
-     */
     async createTransfer(userId: string, dto: CreateTransferDto) {
         const redisKey = `${IDEMPOTENCY_PREFIX}${dto.idempotencyKey}`;
 
-        // 1. Fast path: Check Redis cache first
         const cachedTxn = await this.redisService.get(redisKey);
         if (cachedTxn) {
             this.logger.log(`Idempotent hit (Redis): Transaction cached for key ${dto.idempotencyKey}`);
             return JSON.parse(cachedTxn);
         }
 
-        // 2. Safety net: Check Postgres (handles edge case where Redis was evicted but txn exists)
         const existingTxn = await this.prisma.transactions.findUnique({
             where: { idempotency_key: dto.idempotencyKey },
             include: { currencies: true },
@@ -45,14 +34,11 @@ export class TransactionsService {
 
         if (existingTxn) {
             this.logger.log(`Idempotent hit (DB): Transaction exists for key ${dto.idempotencyKey}`);
-            // Re-populate Redis cache so future checks are fast
             await this.redisService.set(redisKey, JSON.stringify(existingTxn), IDEMPOTENCY_TTL_SECONDS);
             return existingTxn;
         }
 
-        // 3. Execute Atomic Transaction
         const transaction = await this.prisma.$transaction(async (tx) => {
-            // a. Verify and lock the sender account row
             const senderAccounts: any[] = await tx.$queryRaw`
                 SELECT * FROM public.accounts 
                 WHERE id = ${dto.fromAccountId}::uuid 
@@ -73,7 +59,6 @@ export class TransactionsService {
                 throw new BadRequestException('Source account is inactive');
             }
 
-            // b. Verify receiver account exists and is active
             const receiver = await tx.accounts.findUnique({
                 where: { id: dto.toAccountId },
             });
@@ -86,7 +71,6 @@ export class TransactionsService {
                 throw new BadRequestException('Receiver account is inactive');
             }
 
-            // c. Cross-validation: Currencies must match
             if (sender.currency_id !== dto.currencyId || receiver.currency_id !== dto.currencyId) {
                 throw new BadRequestException('Currency mismatch between accounts and request');
             }
@@ -95,7 +79,6 @@ export class TransactionsService {
                 throw new BadRequestException('Cannot transfer to the same account');
             }
 
-            // d. Check balance
             const transferAmount = new Prisma.Decimal(dto.amount);
             const currentBalance = new Prisma.Decimal(sender.balance.toString());
 
@@ -103,7 +86,6 @@ export class TransactionsService {
                 throw new BadRequestException('Insufficient funds');
             }
 
-            // e. Perform balance updates
             await tx.accounts.update({
                 where: { id: sender.id },
                 data: { balance: { decrement: transferAmount } },
@@ -114,7 +96,6 @@ export class TransactionsService {
                 data: { balance: { increment: transferAmount } },
             });
 
-            // f. Record the transaction
             return await tx.transactions.create({
                 data: {
                     from_account_id: sender.id,
@@ -133,9 +114,7 @@ export class TransactionsService {
             });
         });
 
-        // 4. Post-Commit: Cache in Redis & send notifications
         try {
-            // Cache the completed transaction in Redis (24h TTL)
             await this.redisService.set(redisKey, JSON.stringify(transaction), IDEMPOTENCY_TTL_SECONDS);
             this.logger.log(`Cached transaction ${transaction.id} in Redis (TTL: ${IDEMPOTENCY_TTL_SECONDS}s)`);
 
@@ -146,11 +125,9 @@ export class TransactionsService {
             const toUserId = receiverAccount.user_id;
             const receiverAccNum = receiverAccount.account_number;
 
-            // Emit TRANSACTION_SUCCESS via WebSockets to both parties
             this.notificationsService.emitEvent(fromUserId, 'TRANSACTION_SUCCESS', transaction);
             this.notificationsService.emitEvent(toUserId, 'TRANSACTION_SUCCESS', transaction);
 
-            // Send persistent notifications
             await Promise.all([
                 this.notificationsService.sendNotification({
                     userId: fromUserId,

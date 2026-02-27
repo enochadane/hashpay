@@ -1,90 +1,22 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Sidebar from "../components/Sidebar";
 import SearchBar from "../components/SearchBar";
-import ReceiverDetailModal, { type Receiver } from "../components/ReceiverDetailModal";
-
-const MOCK_RECEIVERS: Receiver[] = [
-    {
-        id: 1,
-        name: "Taha Shokouhi",
-        email: "taha@email.com",
-        currencies: [
-            { countryCode: "us", code: "USD", accountCount: 1 },
-            { countryCode: "ir", code: "IRR", accountCount: 2 },
-            { countryCode: "in", code: "INR", accountCount: 1 },
-        ],
-        transactions: [
-            { id: 1, referenceNumber: "61651351355468", to: "Taha Shokouhi", dateTime: "Mon 23 Dec 2024, 3:40 PM", paidWith: "ACH (Connected bank Accounts)", amount: "3000$", amountCountryCode: "us", status: "Approved" },
-            { id: 2, referenceNumber: "61651351355468", to: "Taha Shokouhi", dateTime: "Thu 18 Dec 2024, 8:20 AM", paidWith: "ACH (Connected bank Accounts)", amount: "1,191,680 ₹", amountCountryCode: "in", status: "Pending" },
-            { id: 3, referenceNumber: "61651351355468", to: "Taha Shokouhi", dateTime: "Thu 18 Dec 2024, 8:15 AM", paidWith: "ACH (Connected bank Accounts)", amount: "1,191,680 ₹", amountCountryCode: "in", status: "Approved" },
-        ],
-        createdOn: "22 Dec 2024",
-    },
-    {
-        id: 2,
-        name: "Rami Hussein",
-        email: "rami@email.com",
-        currencies: [
-            { countryCode: "us", code: "USD", accountCount: 2 },
-            { countryCode: "jo", code: "JOD", accountCount: 1 },
-        ],
-        transactions: [
-            { id: 1, referenceNumber: "78432189564312", to: "Rami Hussein", dateTime: "Fri 20 Dec 2024, 11:00 AM", paidWith: "ACH (Connected bank Accounts)", amount: "500$", amountCountryCode: "us", status: "Approved" },
-            { id: 2, referenceNumber: "78432189564312", to: "Rami Hussein", dateTime: "Wed 15 Dec 2024, 9:30 AM", paidWith: "Wire Transfer", amount: "354 JOD", amountCountryCode: "jo", status: "Pending" },
-        ],
-        createdOn: "10 Dec 2024",
-    },
-    {
-        id: 3,
-        name: "Sofia Martinez",
-        email: "sofia@email.com",
-        currencies: [
-            { countryCode: "eu", code: "EUR", accountCount: 1 },
-            { countryCode: "mx", code: "MXN", accountCount: 1 },
-        ],
-        transactions: [
-            { id: 1, referenceNumber: "99127345678901", to: "Sofia Martinez", dateTime: "Tue 17 Dec 2024, 2:15 PM", paidWith: "ACH (Connected bank Accounts)", amount: "€1,200", amountCountryCode: "eu", status: "Approved" },
-        ],
-        createdOn: "5 Dec 2024",
-    },
-    {
-        id: 4,
-        name: "Liang Wei",
-        email: "liang@email.com",
-        currencies: [
-            { countryCode: "cn", code: "CNY", accountCount: 2 },
-            { countryCode: "us", code: "USD", accountCount: 1 },
-        ],
-        transactions: [
-            { id: 1, referenceNumber: "54321987654321", to: "Liang Wei", dateTime: "Sun 22 Dec 2024, 1:00 PM", paidWith: "Wire Transfer", amount: "¥8,000", amountCountryCode: "cn", status: "Approved" },
-            { id: 2, referenceNumber: "54321987654321", to: "Liang Wei", dateTime: "Sat 14 Dec 2024, 4:45 PM", paidWith: "ACH (Connected bank Accounts)", amount: "200$", amountCountryCode: "us", status: "Pending" },
-        ],
-        createdOn: "3 Dec 2024",
-    },
-    {
-        id: 5,
-        name: "Amira Osei",
-        email: "amira@email.com",
-        currencies: [
-            { countryCode: "gh", code: "GHS", accountCount: 1 },
-            { countryCode: "us", code: "USD", accountCount: 1 },
-        ],
-        transactions: [
-            { id: 1, referenceNumber: "11223344556677", to: "Amira Osei", dateTime: "Mon 16 Dec 2024, 10:20 AM", paidWith: "ACH (Connected bank Accounts)", amount: "150$", amountCountryCode: "us", status: "Approved" },
-        ],
-        createdOn: "1 Dec 2024",
-    },
-];
+import ReceiverDetailModal from "../components/ReceiverDetailModal";
+import { useReceiversStore, useAuthStore, type Receiver } from "../lib/store";
 
 function getInitials(name: string) {
+    if (!name) return "";
     return name.split(" ").slice(0, 2).map((n) => n[0]).join("").toUpperCase();
 }
 
 const AVATAR_COLORS = ["#4f46e5", "#0891b2", "#059669", "#d97706", "#dc2626", "#7c3aed", "#db2777", "#065f46", "#1e40af"];
-function avatarColor(id: number) { return AVATAR_COLORS[id % AVATAR_COLORS.length]; }
+function avatarColor(id: string) {
+    const numId = id.split('-').reduce((acc, part) => acc + parseInt(part, 16) || 0, 0);
+    return AVATAR_COLORS[numId % AVATAR_COLORS.length];
+}
 
 function StatCard({ label, value, sub, icon, accentColor }: {
     label: string; value: string; sub: string; icon: React.ReactNode; accentColor: string;
@@ -108,18 +40,28 @@ function StatCard({ label, value, sub, icon, accentColor }: {
 
 export default function ReceiversPage() {
     const [search, setSearch] = useState("");
-    const [selectedReceiver, setSelectedReceiver] = useState<Receiver | null>(null);
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
-    const filtered = MOCK_RECEIVERS.filter(
-        (r) =>
+    const { receivers, loading, error, fetchReceivers, setSelectedReceiver, selectedReceiver } = useReceiversStore();
+    const { profile, fetchProfile } = useAuthStore();
+
+    useEffect(() => {
+        fetchReceivers();
+        fetchProfile();
+    }, [fetchReceivers, fetchProfile]);
+
+    const filtered = receivers.filter(
+        (r: Receiver) =>
             r.name.toLowerCase().includes(search.toLowerCase()) ||
             r.email.toLowerCase().includes(search.toLowerCase())
     );
 
-    const totalAccounts = MOCK_RECEIVERS.flatMap((r) => r.currencies).reduce((s, c) => s + c.accountCount, 0);
-    const totalTransactions = MOCK_RECEIVERS.flatMap((r) => r.transactions).length;
-    const totalCurrencies = new Set(MOCK_RECEIVERS.flatMap((r) => r.currencies.map((c) => c.code))).size;
+    const totalAccounts = receivers.flatMap((r: Receiver) => r.currencies).reduce((s: number, c: any) => s + c.accountCount, 0);
+    // Placeholder for total transactions if not in store yet or fetch separately
+    const totalTransactions = 0;
+    const totalCurrencies = new Set(receivers.flatMap((r: Receiver) => r.currencies.map((c: any) => c.code))).size;
+
+    const currentUserName = profile ? `${profile.first_name}` : "User";
 
     return (
         <>
@@ -145,7 +87,7 @@ export default function ReceiversPage() {
                         </div>
                         <div className="flex items-center gap-2">
                             <div className="w-[30px] h-[30px] rounded-full bg-[#D4A843] flex items-center justify-center">
-                                <span className="text-black font-bold text-xs">K</span>
+                                <span className="text-black font-bold text-[13px]">{profile?.first_name?.[0] || "U"}</span>
                             </div>
                         </div>
                     </div>
@@ -166,7 +108,7 @@ export default function ReceiversPage() {
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
-                            <StatCard label="Total Receivers" value={String(MOCK_RECEIVERS.length)} sub="All time" accentColor="#D4A843"
+                            <StatCard label="Total Receivers" value={String(receivers.length)} sub="All time" accentColor="#D4A843"
                                 icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>}
                             />
                             <StatCard label="Linked Accounts" value={String(totalAccounts)} sub="Across all receivers" accentColor="#4f46e5"
@@ -180,7 +122,7 @@ export default function ReceiversPage() {
                             />
                         </div>
 
-                        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+                        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm min-h-[400px]">
                             <div className="flex items-center justify-between px-6 pt-[18px]">
                                 <p className="font-bold text-[15px] text-gray-900 m-0">All Receivers</p>
                                 <button className="bg-[#D4A843] text-black border-none rounded-[10px] px-[18px] py-2 font-bold text-[13px] cursor-pointer hover:bg-[#c49830] transition-colors">
@@ -200,14 +142,29 @@ export default function ReceiversPage() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {filtered.length === 0 ? (
+                                        {loading ? (
                                             <tr>
-                                                <td colSpan={5} className="py-12 text-center text-gray-400 text-sm">
+                                                <td colSpan={5} className="py-20 text-center">
+                                                    <div className="flex flex-col items-center gap-3">
+                                                        <div className="w-8 h-8 border-4 border-gray-100 border-t-[#D4A843] rounded-full animate-spin" />
+                                                        <span className="text-sm text-gray-400">Loading receivers...</span>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ) : error ? (
+                                            <tr>
+                                                <td colSpan={5} className="py-20 text-center text-red-500 text-sm">
+                                                    {error}
+                                                </td>
+                                            </tr>
+                                        ) : filtered.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={5} className="py-20 text-center text-gray-400 text-sm">
                                                     No receivers found.
                                                 </td>
                                             </tr>
                                         ) : (
-                                            filtered.map((receiver, idx) => (
+                                            filtered.map((receiver: Receiver, idx: number) => (
                                                 <tr
                                                     key={receiver.id}
                                                     onClick={() => setSelectedReceiver(receiver)}
@@ -231,9 +188,9 @@ export default function ReceiversPage() {
 
                                                     <td data-label="Currencies" className="px-6 py-4">
                                                         <div className="flex items-center gap-1.5 flex-wrap">
-                                                            {receiver.currencies.map((c) => (
+                                                            {receiver.currencies.map((c: any, i: number) => (
                                                                 <span
-                                                                    key={c.code}
+                                                                    key={`${c.code}-${i}`}
                                                                     title={c.code}
                                                                     className="w-[26px] h-[26px] rounded-full overflow-hidden shrink-0 border border-gray-200 inline-flex"
                                                                 >
@@ -248,7 +205,7 @@ export default function ReceiversPage() {
                                                                 </span>
                                                             ))}
                                                             <span className="text-xs text-gray-400 ml-1">
-                                                                {receiver.currencies.reduce((s, c) => s + c.accountCount, 0)} accts
+                                                                {receiver.currencies.reduce((s: number, c: any) => s + c.accountCount, 0)} accts
                                                             </span>
                                                         </div>
                                                     </td>
@@ -270,7 +227,7 @@ export default function ReceiversPage() {
 
                             <div className="px-6 py-3.5 border-t border-gray-100">
                                 <p className="text-xs text-gray-400 m-0">
-                                    Showing {filtered.length} of {MOCK_RECEIVERS.length} receivers
+                                    Showing {filtered.length} of {receivers.length} receivers
                                 </p>
                             </div>
                         </div>
@@ -281,7 +238,7 @@ export default function ReceiversPage() {
             {selectedReceiver && (
                 <ReceiverDetailModal
                     receiver={selectedReceiver}
-                    currentUserName="Kasra"
+                    currentUserName={profile ? `${profile.first_name} ${profile.last_name}` : "User"}
                     onClose={() => setSelectedReceiver(null)}
                 />
             )}
