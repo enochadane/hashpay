@@ -449,7 +449,7 @@ model users {
   oauth_consents              oauth_consents[]
   one_time_tokens             one_time_tokens[]
   sessions                    sessions[]
-  profiles                    profiles?
+  profiles                    profiles[]
 
   @@index([instance_id])
   @@index([is_anonymous])
@@ -457,34 +457,30 @@ model users {
 }
 
 model accounts {
-  id                                                  String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id                                             String         @db.Uuid
-  currency_id                                         String         @db.Uuid
-  account_number                                      String         @unique @db.VarChar(20)
-  provider_details                                    String         @db.VarChar(100)
-  balance                                             Decimal        @default(0) @db.Decimal(18, 2)
-  is_active                                           Boolean        @default(true)
-  created_at                                          DateTime       @default(now()) @db.Timestamptz(6)
-  updated_at                                          DateTime       @default(now()) @db.Timestamptz(6)
-  currencies                                          currencies     @relation(fields: [currency_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  profiles                                            profiles       @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  transactions_transactions_from_account_idToaccounts transactions[] @relation("transactions_from_account_idToaccounts")
-  transactions_transactions_to_account_idToaccounts   transactions[] @relation("transactions_to_account_idToaccounts")
+  id                String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id           String         @db.Uuid
+  currency_id       String         @db.Uuid
+  account_number    String         @unique @db.VarChar(20)
+  provider_details  String         @db.VarChar(100)
+  balance           Decimal        @default(0) @db.Decimal(18, 2)
+  is_active         Boolean        @default(true)
+  created_at        DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime       @default(now()) @db.Timestamptz(6)
+  currencies        currencies     @relation(fields: [currency_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  profiles          profiles       @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  transactions_from transactions[] @relation("from_account")
+  transactions_to   transactions[] @relation("to_account")
 
-  @@unique([user_id, currency_id])
-  @@index([account_number], map: "idx_accounts_number")
-  @@index([user_id, currency_id], map: "idx_accounts_user_currency")
   @@schema("public")
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model contacts {
-  id                                          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_id                                     String   @db.Uuid
-  contact_user_id                             String   @db.Uuid
-  created_at                                  DateTime @default(now()) @db.Timestamptz(6)
-  profiles_contacts_contact_user_idToprofiles profiles @relation("contacts_contact_user_idToprofiles", fields: [contact_user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  profiles_contacts_user_idToprofiles         profiles @relation("contacts_user_idToprofiles", fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id         String   @db.Uuid
+  contact_user_id String   @db.Uuid
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  profile         profiles @relation("user_contacts", fields: [user_id], references: [id], onDelete: Cascade)
+  contact_profile profiles @relation("contacts_of_user", fields: [contact_user_id], references: [id], onDelete: Cascade)
 
   @@unique([user_id, contact_user_id])
   @@schema("public")
@@ -505,20 +501,19 @@ model currencies {
 }
 
 model profiles {
-  id                                          String          @id @db.Uuid
-  first_name                                  String          @db.VarChar(120)
-  last_name                                   String          @db.VarChar(120)
-  is_active                                   Boolean         @default(true)
-  created_at                                  DateTime        @default(now()) @db.Timestamptz(6)
-  updated_at                                  DateTime        @default(now()) @db.Timestamptz(6)
-  accounts                                    accounts[]
-  contacts_contacts_contact_user_idToprofiles contacts[]      @relation("contacts_contact_user_idToprofiles")
-  contacts_contacts_user_idToprofiles         contacts[]      @relation("contacts_user_idToprofiles")
-  users                                       users           @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  transactions                                transactions[]
-  notifications                               notifications[]
+  id            String          @id @db.Uuid
+  first_name    String          @db.VarChar(120)
+  last_name     String          @db.VarChar(120)
+  is_active     Boolean         @default(true)
+  created_at    DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime        @default(now()) @db.Timestamptz(6)
+  accounts      accounts[]
+  user          users           @relation(fields: [id], references: [id], onDelete: Cascade)
+  contacts      contacts[]      @relation("user_contacts")
+  as_contact_of contacts[]      @relation("contacts_of_user")
+  notifications notifications[]
+  txn_updates   transactions[]
 
-  @@index([first_name, last_name], map: "idx_profiles_names")
   @@schema("public")
 }
 
@@ -530,40 +525,31 @@ model notifications {
   is_read    Boolean  @default(false)
   created_at DateTime @default(now()) @db.Timestamptz(6)
   updated_at DateTime @default(now()) @db.Timestamptz(6)
-  profiles   profiles @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  profile    profiles @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
-  @@index([user_id, created_at(sort: Desc)], map: "idx_notifications_user_id_created_at")
-  @@index([user_id, is_read], map: "idx_notifications_user_id_is_read")
   @@schema("public")
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model transactions {
-  id                                              String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  idempotency_key                                 String?            @unique @db.VarChar(100)
-  from_account_id                                 String             @db.Uuid
-  to_account_id                                   String             @db.Uuid
-  amount                                          Decimal            @db.Decimal(18, 2)
-  currency_id                                     String             @db.Uuid
-  status                                          transaction_status @default(PENDING)
-  status_updated_at                               DateTime           @default(now()) @db.Timestamptz(6)
-  status_updated_by_user_id                       String?            @db.Uuid
-  reference_number                                String             @unique @default(dbgenerated("(nextval('txn_ref_seq'::regclass))::text")) @db.VarChar(100)
-  queued_at                                       DateTime?          @db.Timestamptz(6)
-  processed_at                                    DateTime?          @db.Timestamptz(6)
-  created_at                                      DateTime           @default(now()) @db.Timestamptz(6)
-  updated_at                                      DateTime           @default(now()) @db.Timestamptz(6)
-  currencies                                      currencies         @relation(fields: [currency_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  accounts_transactions_from_account_idToaccounts accounts           @relation("transactions_from_account_idToaccounts", fields: [from_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  profiles                                        profiles?          @relation(fields: [status_updated_by_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  accounts_transactions_to_account_idToaccounts   accounts           @relation("transactions_to_account_idToaccounts", fields: [to_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id                        String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  idempotency_key           String?            @unique @db.VarChar(100)
+  from_account_id           String             @db.Uuid
+  to_account_id             String             @db.Uuid
+  amount                    Decimal            @db.Decimal(18, 2)
+  currency_id               String             @db.Uuid
+  status                    transaction_status @default(PENDING)
+  status_updated_at         DateTime           @default(now()) @db.Timestamptz(6)
+  status_updated_by_user_id String?            @db.Uuid
+  reference_number          String             @unique @db.VarChar(100)
+  queued_at                 DateTime?          @db.Timestamptz(6)
+  processed_at              DateTime?          @db.Timestamptz(6)
+  created_at                DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at                DateTime           @default(now()) @db.Timestamptz(6)
+  currency                  currencies         @relation(fields: [currency_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  from_account              accounts           @relation("from_account", fields: [from_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  to_account                accounts           @relation("to_account", fields: [to_account_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  status_updater            profiles?          @relation(fields: [status_updated_by_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  @@index([created_at(sort: Desc)], map: "idx_transactions_created_at_desc")
-  @@index([currency_id], map: "idx_transactions_currency_id")
-  @@index([currency_id, status, created_at(sort: Desc)], map: "idx_transactions_dashboard_filter")
-  @@index([from_account_id], map: "idx_transactions_from_account_id")
-  @@index([status], map: "idx_transactions_status")
-  @@index([to_account_id], map: "idx_transactions_to_account_id")
   @@schema("public")
 }
 

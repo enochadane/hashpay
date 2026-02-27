@@ -29,7 +29,7 @@ export class TransactionsService {
 
         const existingTxn = await this.prisma.transactions.findUnique({
             where: { idempotency_key: dto.idempotencyKey },
-            include: { currencies: true },
+            include: { currency: true },
         });
 
         if (existingTxn) {
@@ -96,6 +96,8 @@ export class TransactionsService {
                 data: { balance: { increment: transferAmount } },
             });
 
+            const referenceNumber = `HP-${Math.random().toString(36).substring(2, 10).toUpperCase()}${Date.now().toString().slice(-4)}`;
+
             return await tx.transactions.create({
                 data: {
                     from_account_id: sender.id,
@@ -104,12 +106,13 @@ export class TransactionsService {
                     currency_id: dto.currencyId,
                     status: 'APPROVED',
                     idempotency_key: dto.idempotencyKey,
+                    reference_number: referenceNumber,
                     processed_at: new Date(),
                 },
                 include: {
-                    currencies: true,
-                    accounts_transactions_from_account_idToaccounts: true,
-                    accounts_transactions_to_account_idToaccounts: true,
+                    currency: true,
+                    from_account: true,
+                    to_account: true,
                 }
             });
         });
@@ -118,8 +121,8 @@ export class TransactionsService {
             await this.redisService.set(redisKey, JSON.stringify(transaction), IDEMPOTENCY_TTL_SECONDS);
             this.logger.log(`Cached transaction ${transaction.id} in Redis (TTL: ${IDEMPOTENCY_TTL_SECONDS}s)`);
 
-            const senderAccount = transaction.accounts_transactions_from_account_idToaccounts;
-            const receiverAccount = transaction.accounts_transactions_to_account_idToaccounts;
+            const senderAccount = (transaction as any).from_account;
+            const receiverAccount = (transaction as any).to_account;
 
             const fromUserId = senderAccount.user_id;
             const toUserId = receiverAccount.user_id;
@@ -132,12 +135,12 @@ export class TransactionsService {
                 this.notificationsService.sendNotification({
                     userId: fromUserId,
                     title: 'Sent Transfer',
-                    message: `You sent ${dto.amount} ${transaction.currencies.code} to account ${receiverAccNum}.`,
+                    message: `You sent ${dto.amount} ${(transaction as any).currency.code} to account ${receiverAccNum}.`,
                 }),
                 this.notificationsService.sendNotification({
                     userId: toUserId,
                     title: 'Received Transfer',
-                    message: `You received ${dto.amount} ${transaction.currencies.code} from a user.`,
+                    message: `You received ${dto.amount} ${(transaction as any).currency.code} from a user.`,
                 }),
             ]);
         } catch (err) {
@@ -166,11 +169,11 @@ export class TransactionsService {
                 ],
             },
             include: {
-                currencies: true,
-                accounts_transactions_from_account_idToaccounts: {
+                currency: true,
+                from_account: {
                     include: { profiles: true }
                 },
-                accounts_transactions_to_account_idToaccounts: {
+                to_account: {
                     include: { profiles: true }
                 },
             },
@@ -184,7 +187,7 @@ export class TransactionsService {
     async getTransactionById(txnId: string, userId: string) {
         const txn = await this.prisma.transactions.findUnique({
             where: { id: txnId },
-            include: { currencies: true },
+            include: { currency: true },
         });
 
         if (!txn) {

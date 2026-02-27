@@ -93,9 +93,19 @@ export default function ReceiverDetailModal({
                 <div className="mb-7">
                     <p className="text-[13px] text-gray-500 mb-3">Currencies they use:</p>
                     <div className="flex gap-3 flex-wrap">
-                        {receiver.currencies.map((c: any, i: number) => (
-                            <CurrencyBadge key={`${c.code}-${i}`} countryCode={c.countryCode} code={c.code} accountCount={c.accountCount} />
-                        ))}
+                        {(() => {
+                            const grouped = receiver.currencies.reduce((map: Record<string, { code: string; countryCode: string; accountCount: number }>, c: any) => {
+                                if (map[c.code]) {
+                                    map[c.code].accountCount += c.accountCount;
+                                } else {
+                                    map[c.code] = { code: c.code, countryCode: c.countryCode, accountCount: c.accountCount };
+                                }
+                                return map;
+                            }, {} as Record<string, { code: string; countryCode: string; accountCount: number }>);
+                            return Object.values(grouped).map((c) => (
+                                <CurrencyBadge key={c.code} countryCode={c.countryCode} code={c.code} accountCount={c.accountCount} />
+                            ));
+                        })()}
                     </div>
                 </div>
 
@@ -121,7 +131,7 @@ export default function ReceiverDetailModal({
                         <table className="w-full border-collapse text-[13px]">
                             <thead>
                                 <tr>
-                                    {["#", "Reference number", "To", "Date & Time", "Amount", "Status", "Actions"].map((h) => (
+                                    {["#", "Reference number", "To", "Date & Time", "Paid with", "Amount", "Status", "Actions"].map((h) => (
                                         <th
                                             key={h}
                                             className="text-left text-gray-400 font-medium text-xs pb-2.5 pr-4 whitespace-nowrap border-b border-gray-100"
@@ -134,7 +144,7 @@ export default function ReceiverDetailModal({
                             <tbody>
                                 {loading && transactions.length === 0 ? (
                                     <tr>
-                                        <td colSpan={7} className="py-20 text-center">
+                                        <td colSpan={8} className="py-20 text-center">
                                             <div className="flex flex-col items-center gap-3">
                                                 <div className="w-6 h-6 border-2 border-gray-100 border-t-[#D4A843] rounded-full animate-spin" />
                                                 <span className="text-gray-400">Loading history...</span>
@@ -143,43 +153,50 @@ export default function ReceiverDetailModal({
                                     </tr>
                                 ) : transactions.length === 0 ? (
                                     <tr>
-                                        <td colSpan={7} className="py-12 text-center text-gray-400">
+                                        <td colSpan={8} className="py-12 text-center text-gray-400">
                                             No transactions found between you and {receiver.name}.
                                         </td>
                                     </tr>
                                 ) : (
                                     transactions.map((tx: Transaction, idx: number) => {
-                                        const toProfile = tx.accounts_transactions_to_account_idToaccounts?.profiles;
-                                        const toName = toProfile ? `${toProfile.first_name} ${toProfile.last_name}` : "Unknown";
+                                        const receiverProfile = tx.to_account?.profiles;
+                                        const receiverName = receiverProfile ? `${receiverProfile.first_name} ${receiverProfile.last_name}` : "Unknown";
+                                        const paidWith = tx.from_account?.provider_details || "—";
 
                                         return (
                                             <tr key={tx.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
                                                 <td className="py-3.5 pr-4 text-gray-400">{idx + 1}</td>
                                                 <td className="py-3.5 pr-4 text-gray-700 font-medium font-mono text-xs uppercase">{tx.reference_number?.slice(-12) || "TXN-" + tx.id.slice(0, 8)}</td>
-                                                <td className="py-3.5 pr-4 text-gray-900 font-medium">{toName}</td>
+                                                <td className="py-3.5 pr-4 text-gray-900 font-medium">{receiverName}</td>
                                                 <td className="py-3.5 pr-4 text-gray-500 whitespace-nowrap">{formatDate(tx.created_at)}</td>
+                                                <td className="py-3.5 pr-4 text-gray-700 text-xs whitespace-nowrap">{paidWith}</td>
                                                 <td className="py-3.5 pr-4 text-gray-900 whitespace-nowrap">
                                                     <span className="flex items-center gap-2">
                                                         <span className="w-5 h-5 rounded-full overflow-hidden shrink-0 inline-flex relative border border-gray-100">
                                                             <Image
-                                                                src={`https://flagcdn.com/w40/${tx.currencies.country_code.toLowerCase()}.png`}
-                                                                alt={tx.currencies.code}
+                                                                src={`https://flagcdn.com/w40/${tx.currency.country_code.toLowerCase()}.png`}
+                                                                alt={tx.currency.code}
                                                                 width={40}
                                                                 height={30}
                                                                 className="w-full h-full object-cover"
                                                                 unoptimized
                                                             />
                                                         </span>
-                                                        <span className="font-bold">{parseFloat(tx.amount).toLocaleString()} {tx.currencies.code}</span>
+                                                        <span className="font-bold">{parseFloat(tx.amount).toLocaleString()} {tx.currency.code}</span>
                                                     </span>
                                                 </td>
                                                 <td className="py-3.5 pr-4">
                                                     <StatusBadge status={tx.status as any} />
                                                 </td>
                                                 <td className="py-3.5 whitespace-nowrap">
-                                                    <button className="text-[#D4A843] text-xs font-bold bg-transparent border-none cursor-pointer px-2 py-1 hover:bg-[#D4A843]/10 rounded-lg transition-colors">
-                                                        View Receipt
-                                                    </button>
+                                                    <div className="flex items-center gap-1.5">
+                                                        <button className="text-blue-600 text-xs font-semibold bg-transparent border border-blue-200 cursor-pointer px-2.5 py-1 rounded-md hover:bg-blue-50 transition-colors">
+                                                            View
+                                                        </button>
+                                                        <button className="text-amber-600 text-xs font-semibold bg-transparent border border-amber-200 cursor-pointer px-2.5 py-1 rounded-md hover:bg-amber-50 transition-colors">
+                                                            Download
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         );

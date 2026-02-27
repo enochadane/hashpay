@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -9,8 +9,9 @@ export class ContactsService {
         const contacts = await this.prisma.contacts.findMany({
             where: { user_id: userId },
             include: {
-                profiles_contacts_contact_user_idToprofiles: {
+                contact_profile: {
                     include: {
+                        user: { select: { email: true } },
                         accounts: {
                             include: {
                                 currencies: true,
@@ -22,11 +23,11 @@ export class ContactsService {
         });
 
         return contacts.map(c => {
-            const profile = c.profiles_contacts_contact_user_idToprofiles;
+            const profile = c.contact_profile;
             return {
                 id: profile.id,
                 name: `${profile.first_name} ${profile.last_name}`,
-                email: '',
+                email: profile.user?.email || '',
                 currencies: profile.accounts.map(acc => ({
                     countryCode: acc.currencies.country_code,
                     code: acc.currencies.code,
@@ -64,10 +65,21 @@ export class ContactsService {
                 ],
             },
             include: {
-                currencies: true,
-                accounts_transactions_to_account_idToaccounts: {
-                    include: { profiles: true }
-                }
+                currency: true,
+                from_account: {
+                    select: {
+                        provider_details: true,
+                        user_id: true,
+                        profiles: { select: { first_name: true, last_name: true } },
+                    }
+                },
+                to_account: {
+                    select: {
+                        provider_details: true,
+                        user_id: true,
+                        profiles: { select: { first_name: true, last_name: true } },
+                    }
+                },
             },
             orderBy: { created_at: 'desc' },
         });

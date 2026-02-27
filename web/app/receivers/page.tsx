@@ -57,8 +57,6 @@ export default function ReceiversPage() {
     );
 
     const totalAccounts = receivers.flatMap((r: Receiver) => r.currencies).reduce((s: number, c: any) => s + c.accountCount, 0);
-    // Placeholder for total transactions if not in store yet or fetch separately
-    const totalTransactions = 0;
     const totalCurrencies = new Set(receivers.flatMap((r: Receiver) => r.currencies.map((c: any) => c.code))).size;
 
     const currentUserName = profile ? `${profile.first_name}` : "User";
@@ -107,16 +105,14 @@ export default function ReceiversPage() {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-7">
                             <StatCard label="Total Receivers" value={String(receivers.length)} sub="All time" accentColor="#D4A843"
                                 icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>}
                             />
                             <StatCard label="Linked Accounts" value={String(totalAccounts)} sub="Across all receivers" accentColor="#4f46e5"
                                 icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 3H8L2 7h20l-6-4z" /><circle cx="16" cy="14" r="2" /></svg>}
                             />
-                            <StatCard label="Transactions Sent" value={String(totalTransactions)} sub="Total payments made" accentColor="#059669"
-                                icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>}
-                            />
+
                             <StatCard label="Currencies Used" value={String(totalCurrencies)} sub="Unique currencies" accentColor="#0891b2"
                                 icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></svg>}
                             />
@@ -188,25 +184,47 @@ export default function ReceiversPage() {
 
                                                     <td data-label="Currencies" className="px-6 py-4">
                                                         <div className="flex items-center gap-1.5 flex-wrap">
-                                                            {receiver.currencies.map((c: any, i: number) => (
-                                                                <span
-                                                                    key={`${c.code}-${i}`}
-                                                                    title={c.code}
-                                                                    className="w-[26px] h-[26px] rounded-full overflow-hidden shrink-0 border border-gray-200 inline-flex"
-                                                                >
-                                                                    <Image
-                                                                        src={`https://flagcdn.com/w40/${c.countryCode.toLowerCase()}.png`}
-                                                                        alt={c.code}
-                                                                        width={40}
-                                                                        height={30}
-                                                                        className="w-full h-full object-cover"
-                                                                        unoptimized
-                                                                    />
-                                                                </span>
-                                                            ))}
-                                                            <span className="text-xs text-gray-400 ml-1">
-                                                                {receiver.currencies.reduce((s: number, c: any) => s + c.accountCount, 0)} accts
-                                                            </span>
+                                                            {(() => {
+                                                                // Group currencies by code, summing accountCount
+                                                                const grouped = receiver.currencies.reduce((map: Record<string, { code: string; countryCode: string; accountCount: number }>, c: any) => {
+                                                                    if (map[c.code]) {
+                                                                        map[c.code].accountCount += c.accountCount;
+                                                                    } else {
+                                                                        map[c.code] = { code: c.code, countryCode: c.countryCode, accountCount: c.accountCount };
+                                                                    }
+                                                                    return map;
+                                                                }, {} as Record<string, { code: string; countryCode: string; accountCount: number }>);
+                                                                const uniqueCurrencies = Object.values(grouped);
+                                                                const totalAccts = uniqueCurrencies.reduce((s, c) => s + c.accountCount, 0);
+                                                                return (
+                                                                    <>
+                                                                        {uniqueCurrencies.map((c) => (
+                                                                            <span
+                                                                                key={c.code}
+                                                                                title={`${c.code} — ${c.accountCount} account${c.accountCount !== 1 ? "s" : ""}`}
+                                                                                className="w-[26px] h-[26px] rounded-full overflow-hidden shrink-0 border border-gray-200 inline-flex relative"
+                                                                            >
+                                                                                <Image
+                                                                                    src={`https://flagcdn.com/w40/${c.countryCode.toLowerCase()}.png`}
+                                                                                    alt={c.code}
+                                                                                    width={40}
+                                                                                    height={30}
+                                                                                    className="w-full h-full object-cover"
+                                                                                    unoptimized
+                                                                                />
+                                                                                {c.accountCount > 1 && (
+                                                                                    <span className="absolute -top-1 -right-1 bg-[#D4A843] text-black text-[9px] font-bold w-3.5 h-3.5 rounded-full flex items-center justify-center leading-none shadow-sm">
+                                                                                        {c.accountCount}
+                                                                                    </span>
+                                                                                )}
+                                                                            </span>
+                                                                        ))}
+                                                                        <span className="text-xs text-gray-400 ml-1">
+                                                                            {totalAccts} acct{totalAccts !== 1 ? "s" : ""}
+                                                                        </span>
+                                                                    </>
+                                                                );
+                                                            })()}
                                                         </div>
                                                     </td>
 

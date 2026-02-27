@@ -20,16 +20,26 @@ export interface Transaction {
     currency_id: string;
     status: string;
     created_at: string;
-    currencies: {
+    currency: {
         code: string;
         country_code: string;
     };
-    accounts_transactions_to_account_idToaccounts: {
+    from_account: {
+        provider_details: string;
+        user_id: string;
         profiles: {
             first_name: string;
             last_name: string;
-        }
-    }
+        };
+    };
+    to_account: {
+        provider_details: string;
+        user_id: string;
+        profiles: {
+            first_name: string;
+            last_name: string;
+        };
+    };
 }
 
 interface AuthState {
