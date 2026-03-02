@@ -197,13 +197,27 @@ The seed script (`backend/prisma/seed.ts`) creates six test users that share the
 > [!TIP]
 > All six seed users (`alice`, `bob`, `charlie`, `david`, `eve`, `frank`) use the password **`Test1234!`**. You can log in as any of them to explore the app from different perspectives.
 
-### Testing the Send (P2P Transfer) Flow
+### Testing the Send (P2P Transfer) — Real-Time Flow
 
-1. **Log in as User A** — sign in with `david@hashpay.test` / `Test1234!`.
-2. **Open Send Money** — click the **"Send"** button in the sidebar (or header on mobile) to open the Send Money modal.
-3. **Select a contact** — search for or click **Eve Davis** in the contact list (Step 1 of the modal).
-4. **Choose currency & enter amount** — the modal advances to Step 2. Pick a shared currency (e.g. **USD**) from the dropdown and enter an amount (the modal shows your available balance).
-5. **Submit the transfer** — click **Continue**. The app sends a `POST /transactions/transfer` request with `fromAccountId`, `toAccountId`, `amount`, `currencyId`, and an `idempotencyKey`.
-6. **Confirm success** — a green checkmark screen appears with *"Transfer Successful!"*. Click **Done** to close.
-7. **Verify state updates** — User A's account balance should decrease by the sent amount. The new transaction should appear in the transaction list for Eve.
-8. **Cross-check as User B** — log out, sign in as `eve@hashpay.test`, and confirm the received amount reflects in Eve's balance and transaction history.
+> [!IMPORTANT]
+> The **Send Money** feature was implemented to demonstrate **transaction atomicity** and **real-time state management**. To properly verify this, you need **two browser windows open at the same time** so you can watch updates arrive instantly on the receiver's screen.
+
+#### Setup — Two Simultaneous Sessions
+
+1. **Browser 1 (normal window)** — open `http://localhost:3000` and sign in as **David** (`david@hashpay.test` / `Test1234!`).
+2. **Browser 2 (incognito / private window)** — open `http://localhost:3000` in an incognito or private window and sign in as **Eve** (`eve@hashpay.test` / `Test1234!`).
+3. **Arrange side-by-side** — place both browser windows next to each other so you can observe both dashboards at the same time.
+
+#### Perform the Transfer (Browser 1 — David)
+
+4. **Open Send Money** — click the **"Send"** button in the sidebar (or header on mobile) to open the Send Money modal.
+5. **Select a contact** — search for or click **Eve Davis** in the contact list (Step 1 of the modal).
+6. **Choose currency & enter amount** — the modal advances to Step 2. Pick a shared currency (e.g. **USD**) from the dropdown and enter an amount (the modal shows your available balance).
+7. **Submit the transfer** — click **Continue**. The app sends a `POST /transactions/transfer` request with `fromAccountId`, `toAccountId`, `amount`, `currencyId`, and an `idempotencyKey`.
+8. **Confirm success** — a green checkmark screen appears with *"Transfer Successful!"*. Click **Done** to close.
+
+#### Verify Real-Time Updates (Browser 2 — Eve)
+
+9. **Check Eve's dashboard immediately** — without refreshing Browser 2, observe that Eve's account balance has updated and a new notification has appeared in real time via the WebSocket connection.
+10. **Verify transaction history** — open Eve's transaction list to confirm the incoming transfer from David appears with the correct amount, currency, and status.
+
