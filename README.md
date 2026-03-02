@@ -182,3 +182,28 @@ npx prisma studio
 ```
 
 ---
+
+## Testing & QA
+
+### Test Credentials
+
+The seed script (`backend/prisma/seed.ts`) creates six test users that share the same password. To test the peer-to-peer transfer flow, use any two of them — **David** and **Eve** work well because they share several common currencies:
+
+| Role   | Email                | Password    | Notes                                      |
+| ------ | -------------------- | ----------- | ------------------------------------------ |
+| User A | `david@hashpay.test` | `Test1234!` | Has USD, EUR, GBP, AED, INR accounts       |
+| User B | `eve@hashpay.test`   | `Test1234!` | Has USD, EUR, GBP, INR, BRL accounts       |
+
+> [!TIP]
+> All six seed users (`alice`, `bob`, `charlie`, `david`, `eve`, `frank`) use the password **`Test1234!`**. You can log in as any of them to explore the app from different perspectives.
+
+### Testing the Send (P2P Transfer) Flow
+
+1. **Log in as User A** — sign in with `david@hashpay.test` / `Test1234!`.
+2. **Open Send Money** — click the **"Send"** button in the sidebar (or header on mobile) to open the Send Money modal.
+3. **Select a contact** — search for or click **Eve Davis** in the contact list (Step 1 of the modal).
+4. **Choose currency & enter amount** — the modal advances to Step 2. Pick a shared currency (e.g. **USD**) from the dropdown and enter an amount (the modal shows your available balance).
+5. **Submit the transfer** — click **Continue**. The app sends a `POST /transactions/transfer` request with `fromAccountId`, `toAccountId`, `amount`, `currencyId`, and an `idempotencyKey`.
+6. **Confirm success** — a green checkmark screen appears with *"Transfer Successful!"*. Click **Done** to close.
+7. **Verify state updates** — User A's account balance should decrease by the sent amount. The new transaction should appear in the transaction list for Eve.
+8. **Cross-check as User B** — log out, sign in as `eve@hashpay.test`, and confirm the received amount reflects in Eve's balance and transaction history.
